@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
-import Editor from "@monaco-editor/react";
 import {
   BookOpen,
   Bot,
@@ -34,6 +33,59 @@ import {
 } from "lucide-react";
 import "./styles.css";
 
+// Lazy load Monaco so any worker failure won't kill the whole UI
+const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+
+function CodeEditorWrapper({ value, onChange, language, height = "400px" }) {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <textarea
+        style={{
+          width: "100%",
+          height,
+          background: "#080c15",
+          color: "#eef2ff",
+          fontFamily: "monospace",
+          fontSize: "14px",
+          border: "none",
+          padding: "16px",
+          outline: "none",
+          boxSizing: "border-box",
+          resize: "none"
+        }}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+
+  return (
+    <Suspense
+      fallback={
+        <div style={{ height, display: "grid", placeItems: "center", color: "#8994aa" }}>
+          Loading editor...
+        </div>
+      }
+    >
+      <MonacoEditor
+        height={height}
+        theme="vs-dark"
+        language={language}
+        value={value}
+        onChange={(val) => onChange(val || "")}
+        options={{
+          minimap: { enabled: false },
+          fontSize: 14,
+          automaticLayout: true
+        }}
+        loading={<div style={{ height, display: "grid", placeItems: "center", color: "#8994aa" }}>Loading editor...</div>}
+      />
+    </Suspense>
+  );
+}
+
 const STORAGE = "codeverse-v2";
 
 const lessons = [
@@ -45,10 +97,7 @@ const lessons = [
     time: "12 min",
     desc: "Store values, change them, and understand types.",
     lang: "python",
-    code: `name = "CodeVerse"
-xp = 100
-print(name)
-print(xp)`
+    code: `name = "CodeVerse"\nxp = 100\nprint(name)\nprint(xp)`
   },
   {
     id: "conditions",
@@ -58,12 +107,7 @@ print(xp)`
     time: "15 min",
     desc: "Make programs choose what happens next.",
     lang: "python",
-    code: `score = 78
-
-if score >= 50:
-    print("Passed")
-else:
-    print("Try again")`
+    code: `score = 78\n\nif score >= 50:\n    print("Passed")\nelse:\n    print("Try again")`
   },
   {
     id: "loops",
@@ -73,8 +117,7 @@ else:
     time: "18 min",
     desc: "Repeat work without repeating yourself.",
     lang: "python",
-    code: `for i in range(5):
-    print("Step", i)`
+    code: `for i in range(5):\n    print("Step", i)`
   },
   {
     id: "functions",
@@ -84,11 +127,7 @@ else:
     time: "20 min",
     desc: "Turn repeated logic into reusable building blocks.",
     lang: "javascript",
-    code: `function greet(name) {
-  return \`Hello, \${name}!\`;
-}
-
-console.log(greet("Coder"));`
+    code: `function greet(name) {\n  return \`Hello, \${name}!\`;\n}\n\nconsole.log(greet("Coder"));`
   },
   {
     id: "arrays",
@@ -98,10 +137,7 @@ console.log(greet("Coder"));`
     time: "24 min",
     desc: "Work with collections and visualize indexes.",
     lang: "javascript",
-    code: `const scores = [72, 91, 64, 88];
-
-console.log(scores[1]);
-console.log(scores.length);`
+    code: `const scores = [72, 91, 64, 88];\n\nconsole.log(scores[1]);\nconsole.log(scores.length);`
   },
   {
     id: "algorithms",
@@ -111,17 +147,7 @@ console.log(scores.length);`
     time: "30 min",
     desc: "Break problems into measurable steps.",
     lang: "javascript",
-    code: `function findMax(values) {
-  let best = values[0];
-
-  for (const value of values) {
-    if (value > best) best = value;
-  }
-
-  return best;
-}
-
-console.log(findMax([4, 9, 2, 7]));`
+    code: `function findMax(values) {\n  let best = values[0];\n  for (const value of values) {\n    if (value > best) best = value;\n  }\n  return best;\n}\n\nconsole.log(findMax([4, 9, 2, 7]));`
   }
 ];
 
@@ -133,16 +159,8 @@ const challenges = [
     xp: 100,
     lang: "javascript",
     prompt: "Return the input string reversed.",
-    starter: `function reverse(text) {
-  // write your solution
-}
-
-console.log(reverse("code"));`,
-    answer: `function reverse(text) {
-  return text.split("").reverse().join("");
-}
-
-console.log(reverse("code"));`
+    starter: `function reverse(text) {\n  // write your solution\n}\n\nconsole.log(reverse("code"));`,
+    answer: `function reverse(text) {\n  return text.split("").reverse().join("");\n}\n\nconsole.log(reverse("code"));`
   },
   {
     id: "fizz",
@@ -150,17 +168,9 @@ console.log(reverse("code"));`
     difficulty: "Easy",
     xp: 150,
     lang: "javascript",
-    prompt:
-      "Print 1–30. Multiples of 3 become Fizz, 5 become Buzz, both become FizzBuzz.",
-    starter: `for (let i = 1; i <= 30; i++) {
-  // write your solution
-}`,
-    answer: `for (let i = 1; i <= 30; i++) {
-  if (i % 15 === 0) console.log("FizzBuzz");
-  else if (i % 3 === 0) console.log("Fizz");
-  else if (i % 5 === 0) console.log("Buzz");
-  else console.log(i);
-}`
+    prompt: "Print 1–30. Multiples of 3 become Fizz, 5 become Buzz, both become FizzBuzz.",
+    starter: `for (let i = 1; i <= 30; i++) {\n  // write your solution\n}`,
+    answer: `for (let i = 1; i <= 30; i++) {\n  if (i % 15 === 0) console.log("FizzBuzz");\n  else if (i % 3 === 0) console.log("Fizz");\n  else if (i % 5 === 0) console.log("Buzz");\n  else console.log(i);\n}`
   },
   {
     id: "binary",
@@ -169,27 +179,8 @@ console.log(reverse("code"));`
     xp: 220,
     lang: "javascript",
     prompt: "Return the index of target in a sorted array, or -1.",
-    starter: `function binarySearch(items, target) {
-  // write your solution
-}`,
-    answer: `function binarySearch(items, target) {
-  let lo = 0;
-  let hi = items.length - 1;
-
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-
-    if (items[mid] === target) return mid;
-
-    if (items[mid] < target) {
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
-    }
-  }
-
-  return -1;
-}`
+    starter: `function binarySearch(items, target) {\n  // write your solution\n}`,
+    answer: `function binarySearch(items, target) {\n  let lo = 0;\n  let hi = items.length - 1;\n  while (lo <= hi) {\n    const mid = Math.floor((lo + hi) / 2);\n    if (items[mid] === target) return mid;\n    if (items[mid] < target) lo = mid + 1;\n    else hi = mid - 1;\n  }\n  return -1;\n}`
   }
 ];
 
@@ -239,36 +230,16 @@ const languages = {
 
 const defaults = {
   javascript: `console.log("Hello, CodeVerse!");`,
-  python: `name = "CodeVerse"
-print(f"Hello, {name}!")`,
-  html: `<main class="card">
-  <h1>Hello CodeVerse</h1>
-  <p>Edit the HTML and see it live.</p>
-</main>`,
-  css: `.card {
-  font-family: system-ui;
-  padding: 32px;
-  border-radius: 24px;
-  background: #151b2b;
-  color: white;
-}`,
-  cpp: `#include <iostream>
-
-int main() {
-  std::cout << "Hello, CodeVerse!";
-  return 0;
-}`,
-  java: `public class Main {
-  public static void main(String[] args) {
-    System.out.println("Hello, CodeVerse!");
-  }
-}`
+  python: `name = "CodeVerse"\nprint(f"Hello, {name}!")`,
+  html: `<main class=\"card\">\n  <h1>Hello CodeVerse</h1>\n  <p>Edit the HTML and see it live.</p>\n</main>`,
+  css: `.card {\n  font-family: system-ui;\n  padding: 32px;\n  border-radius: 24px;\n  background: #151b2b;\n  color: white;\n}`,
+  cpp: `#include <iostream>\n\nint main() {\n  std::cout << "Hello, CodeVerse!";\n  return 0;\n}`,
+  java: `public class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello, CodeVerse!");\n  }\n}`
 };
 
 function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE));
-    return saved || {};
+    return JSON.parse(localStorage.getItem(STORAGE)) || {};
   } catch {
     return {};
   }
@@ -293,7 +264,7 @@ function App() {
     const loader = document.getElementById("loading");
     if (loader) {
       loader.style.opacity = "0";
-      setTimeout(() => loader.remove(), 300);
+      setTimeout(() => loader.remove(), 200);
     }
   }, []);
 
@@ -311,36 +282,20 @@ function App() {
         selectedChallenge
       })
     );
-
     document.documentElement.dataset.theme = theme;
-  }, [
-    page,
-    theme,
-    xp,
-    streak,
-    completed,
-    savedProjects,
-    selectedLesson,
-    selectedChallenge
-  ]);
+  }, [page, theme, xp, streak, completed, savedProjects, selectedLesson, selectedChallenge]);
 
   useEffect(() => {
     if (!toast) return;
-
-    const timer = setTimeout(() => {
-      setToast("");
-    }, 2200);
-
+    const timer = setTimeout(() => setToast(""), 2200);
     return () => clearTimeout(timer);
   }, [toast]);
 
   const finishLesson = (id) => {
     if (!completed.includes(id)) {
       setCompleted((value) => [...value, id]);
-
       const lesson = lessons.find((item) => item.id === id);
       const amount = lesson?.xp || 50;
-
       setXp((value) => value + amount);
       setToast(`Lesson complete · +${amount} XP`);
     } else {
@@ -368,20 +323,14 @@ function App() {
           <div className="brandMark">
             <Code2 size={19} />
           </div>
-
           <span>CodeVerse</span>
-
-          <button
-            className="iconBtn mobileClose"
-            onClick={() => setMobileOpen(false)}
-          >
+          <button className="iconBtn mobileClose" onClick={() => setMobileOpen(false)}>
             <X />
           </button>
         </div>
 
         <div className="profileMini">
           <div className="avatar">CV</div>
-
           <div>
             <b>Code Explorer</b>
             <small>Level 4 · {xp} XP</small>
@@ -416,10 +365,7 @@ function App() {
 
       <main className="main">
         <header className="topbar">
-          <button
-            className="iconBtn menu"
-            onClick={() => setMobileOpen(true)}
-          >
+          <button className="iconBtn menu" onClick={() => setMobileOpen(true)}>
             <Menu />
           </button>
 
@@ -427,7 +373,7 @@ function App() {
             <Search size={17} />
             <input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search lessons, projects, challenges..."
             />
           </div>
@@ -435,9 +381,7 @@ function App() {
           <div className="topActions">
             <button
               className="iconBtn"
-              onClick={() =>
-                setTheme(theme === "dark" ? "light" : "dark")
-              }
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               title="Theme"
             >
               {theme === "dark" ? <Sun /> : <Moon />}
@@ -446,21 +390,13 @@ function App() {
             <div className="xpPill">
               <Zap size={15} /> {xp} XP
             </div>
-
             <div className="avatar">CV</div>
           </div>
         </header>
 
         {page === "home" && (
-          <Home
-            go={setPage}
-            xp={xp}
-            streak={streak}
-            completed={completed}
-            finish={finishLesson}
-          />
+          <Home go={setPage} xp={xp} streak={streak} completed={completed} finish={finishLesson} />
         )}
-
         {page === "learn" && (
           <Learn
             completed={completed}
@@ -470,15 +406,10 @@ function App() {
             search={search}
           />
         )}
-
         {page === "playground" && <Playground />}
         {page === "visual" && <VisualLab />}
         {page === "projects" && (
-          <Projects
-            saved={savedProjects}
-            setSaved={setSavedProjects}
-            toast={setToast}
-          />
+          <Projects saved={savedProjects} setSaved={setSavedProjects} toast={setToast} />
         )}
         {page === "challenges" && (
           <Challenges
@@ -527,10 +458,8 @@ function PageTitle({ eyebrow, title, desc, children }) {
   );
 }
 
-function Home({ go, xp, streak, completed, finish }) {
-  const next =
-    lessons.find((lesson) => !completed.includes(lesson.id)) ||
-    lessons[0];
+function Home({ go, xp, streak, completed }) {
+  const next = lessons.find((l) => !completed.includes(l.id)) || lessons[0];
 
   return (
     <div className="content">
@@ -540,31 +469,21 @@ function Home({ go, xp, streak, completed, finish }) {
             <Sparkles size={14} />
             LEARNING ENGINE 2.0
           </span>
-
           <h1>
-            Don’t just learn code.
-            <br />
+            Don’t just learn code.<br />
             <span>See it happen.</span>
           </h1>
-
           <p>
-            Learn programming through visual explanations, interactive
-            code, practical challenges, projects and an AI-powered
-            learning workflow.
+            Learn programming through visual explanations, interactive code, practical challenges,
+            projects and an AI-powered learning workflow.
           </p>
 
           <div className="heroBtns">
             <button className="primary" onClick={() => go("learn")}>
-              Continue learning
-              <ChevronRight size={16} />
+              Continue learning <ChevronRight size={16} />
             </button>
-
-            <button
-              className="secondary"
-              onClick={() => go("playground")}
-            >
-              <Terminal size={16} />
-              Open playground
+            <button className="secondary" onClick={() => go("playground")}>
+              <Terminal size={16} /> Open playground
             </button>
           </div>
         </div>
@@ -573,7 +492,6 @@ function Home({ go, xp, streak, completed, finish }) {
           <div className="orbCore">
             <Code2 size={50} />
           </div>
-
           <span className="float f1">AI Teacher</span>
           <span className="float f2">Live Output</span>
           <span className="float f3">Visual Lab</span>
@@ -588,7 +506,6 @@ function Home({ go, xp, streak, completed, finish }) {
             <small>Total experience</small>
           </div>
         </div>
-
         <div className="stat">
           <Flame size={21} />
           <div>
@@ -596,7 +513,6 @@ function Home({ go, xp, streak, completed, finish }) {
             <small>Current streak</small>
           </div>
         </div>
-
         <div className="stat">
           <Check size={21} />
           <div>
@@ -604,7 +520,6 @@ function Home({ go, xp, streak, completed, finish }) {
             <small>Lessons complete</small>
           </div>
         </div>
-
         <div className="stat">
           <Target size={21} />
           <div>
@@ -628,48 +543,32 @@ function Home({ go, xp, streak, completed, finish }) {
 
           <div className="lessonPreview">
             <div className="codeLines">
-              {next.code
-                .split("\n")
-                .slice(0, 6)
-                .map((line, index) => (
-                  <React.Fragment key={index}>
-                    <i>{index + 1}</i>
-                    <b>{line || " "}</b>
-                  </React.Fragment>
-                ))}
+              {next.code.split("\n").slice(0, 6).map((line, index) => (
+                <React.Fragment key={index}>
+                  <i>{index + 1}</i>
+                  <b>{line || " "}</b>
+                </React.Fragment>
+              ))}
             </div>
           </div>
 
-          <button
-            className="primary"
-            style={{ marginTop: 15 }}
-            onClick={() => go("learn")}
-          >
-            Open lesson
-            <ChevronRight size={16} />
+          <button className="primary" style={{ marginTop: 15 }} onClick={() => go("learn")}>
+            Open lesson <ChevronRight size={16} />
           </button>
         </section>
 
         <section className="panel">
           <span className="eyebrow">
-            <Bot size={14} />
-            AI TEACHER
+            <Bot size={14} /> AI TEACHER
           </span>
-
           <h2>What should we build today?</h2>
-
           <p className="muted">
-            Ask for an explanation, debugging help, a project idea,
-            or a visual breakdown of a difficult concept.
+            Ask for an explanation, debugging help, a project idea, or a visual breakdown of a difficult concept.
           </p>
-
           <div className="aiPrompt">
             <span>Explain recursion visually...</span>
-            <button>
-              <Send size={14} />
-            </button>
+            <button><Send size={14} /></button>
           </div>
-
           <div className="suggestions">
             <span>Explain arrays</span>
             <span>Debug my code</span>
@@ -684,30 +583,21 @@ function Home({ go, xp, streak, completed, finish }) {
           <span className="eyebrow">ROADMAP</span>
           <h2>Recommended lessons</h2>
         </div>
-
         <button className="textBtn" onClick={() => go("learn")}>
-          View all
-          <ChevronRight size={15} />
+          View all <ChevronRight size={15} />
         </button>
       </div>
 
       <div className="lessonGrid">
         {lessons.slice(0, 4).map((lesson) => (
-          <button
-            className="lessonCard"
-            key={lesson.id}
-            onClick={() => go("learn")}
-          >
+          <button className="lessonCard" key={lesson.id} onClick={() => go("learn")}>
             <div className="lessonIcon">
               <BookOpen />
             </div>
-
             <div className="lessonInfo">
               <b>{lesson.title}</b>
               <p>{lesson.desc}</p>
-              <small>
-                {lesson.level} · {lesson.time}
-              </small>
+              <small>{lesson.level} · {lesson.time}</small>
             </div>
           </button>
         ))}
@@ -716,21 +606,11 @@ function Home({ go, xp, streak, completed, finish }) {
   );
 }
 
-function Learn({
-  completed,
-  selected,
-  setSelected,
-  finish,
-  search
-}) {
+function Learn({ completed, selected, setSelected, finish, search }) {
   const filtered = lessons.filter((lesson) =>
-    `${lesson.title} ${lesson.desc} ${lesson.level}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
+    `${lesson.title} ${lesson.desc} ${lesson.level}`.toLowerCase().includes(search.toLowerCase())
   );
-
-  const lesson =
-    lessons.find((item) => item.id === selected) || lessons[0];
+  const lesson = lessons.find((item) => item.id === selected) || lessons[0];
 
   return (
     <div className="content">
@@ -745,25 +625,16 @@ function Learn({
           {filtered.map((item) => (
             <button
               key={item.id}
-              className={`lessonCard ${
-                item.id === selected ? "selected" : ""
-              }`}
+              className={`lessonCard ${item.id === selected ? "selected" : ""}`}
               onClick={() => setSelected(item.id)}
             >
               <div className="lessonIcon">
-                {completed.includes(item.id) ? (
-                  <Check />
-                ) : (
-                  <BookOpen />
-                )}
+                {completed.includes(item.id) ? <Check /> : <BookOpen />}
               </div>
-
               <div className="lessonInfo">
                 <b>{item.title}</b>
                 <p>{item.desc}</p>
-                <small>
-                  {item.level} · {item.time} · +{item.xp} XP
-                </small>
+                <small>{item.level} · {item.time} · +{item.xp} XP</small>
               </div>
             </button>
           ))}
@@ -772,62 +643,36 @@ function Learn({
         <section className="panel lessonDetail">
           <div className="detailTop">
             <div>
-              <span className="eyebrow">
-                {lesson.level.toUpperCase()}
-              </span>
-
+              <span className="eyebrow">{lesson.level.toUpperCase()}</span>
               <h2>{lesson.title}</h2>
-
               <p className="muted">{lesson.desc}</p>
             </div>
-
             {completed.includes(lesson.id) && (
-              <span className="done">
-                <Check size={13} />
-                Complete
-              </span>
+              <span className="done"><Check size={13} /> Complete</span>
             )}
           </div>
 
           <div className="concept">
             <Lightbulb className="conceptIcon" />
-
             <div>
               <b>Concept in plain language</b>
-
               <p>
-                Think of this concept as a tool your program can use.
-                The goal is not to memorize syntax. Understand what
-                the computer is doing and then use the syntax to
-                express that idea.
+                Think of this concept as a tool your program can use. Understand what the computer is doing, then use syntax to express that idea.
               </p>
             </div>
           </div>
 
           <div className="lessonCode">
             <div className="miniBar">
-              <span>
-                {languages[lesson.lang]?.name || lesson.lang}
-              </span>
-
+              <span>{languages[lesson.lang]?.name || lesson.lang}</span>
               <span>{languages[lesson.lang]?.ext}</span>
             </div>
-
             <pre>{lesson.code}</pre>
           </div>
 
           <div className="detailActions">
-            <button
-              className="primary"
-              onClick={() => finish(lesson.id)}
-            >
-              <Check size={16} />
-              Mark complete
-            </button>
-
-            <button className="secondary">
-              <Play size={16} />
-              Visualize
+            <button className="primary" onClick={() => finish(lesson.id)}>
+              <Check size={16} /> Mark complete
             </button>
           </div>
         </section>
@@ -839,51 +684,29 @@ function Learn({
 function Playground() {
   const [language, setLanguage] = useState("javascript");
   const [code, setCode] = useState(defaults.javascript);
-  const [output, setOutput] = useState(
-    "Click Run to execute your JavaScript."
-  );
+  const [output, setOutput] = useState("Click Run to execute your JavaScript.");
   const [preview, setPreview] = useState(false);
 
-  const changeLanguage = (value) => {
-    setLanguage(value);
-    setCode(defaults[value] || "");
+  const changeLanguage = (val) => {
+    setLanguage(val);
+    setCode(defaults[val] || "");
     setOutput("Ready.");
   };
 
   const run = () => {
     if (language === "javascript") {
       const logs = [];
-
       try {
         const original = console.log;
-
         console.log = (...args) => {
-          logs.push(
-            args
-              .map((value) =>
-                typeof value === "object"
-                  ? JSON.stringify(value)
-                  : String(value)
-              )
-              .join(" ")
-          );
+          logs.push(args.map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a))).join(" "));
         };
-
         new Function(code)();
-
         console.log = original;
-
-        setOutput(
-          logs.length
-            ? logs.join("\n")
-            : "Program finished with no console output."
-        );
-      } catch (error) {
-        setOutput(
-          `Error: ${error?.message || String(error)}`
-        );
+        setOutput(logs.length ? logs.join("\n") : "Program finished with no console output.");
+      } catch (err) {
+        setOutput(`Error: ${err?.message || String(err)}`);
       }
-
       return;
     }
 
@@ -893,110 +716,70 @@ function Playground() {
       return;
     }
 
-    setOutput(
-      `${languages[language]?.name} execution requires a secure backend sandbox.`
-    );
+    setOutput(`${languages[language]?.name} execution requires a backend server sandbox.`);
   };
 
   const previewDocument =
     language === "html"
       ? code
-      : `<style>${language === "css" ? code : ""}</style>
-<div class="card">
-  <h2>CodeVerse Preview</h2>
-  <p>Edit your HTML/CSS and run again.</p>
-</div>`;
+      : `<style>${language === "css" ? code : ""}</style><div class="card"><h2>CodeVerse Preview</h2><p>Live preview active.</p></div>`;
 
   return (
     <div className="content">
       <PageTitle
         eyebrow="PLAYGROUND"
         title="Code. Run. See."
-        desc="Experiment freely. JavaScript runs in-browser; native languages should be connected to a secure execution sandbox."
+        desc="JavaScript runs directly in your browser; HTML and CSS offer live previews."
       />
 
       <div className="playground">
         <section className="editorPanel">
           <div className="editorHead">
             <div className="langTabs">
-              {Object.entries(languages).map(([key, value]) => (
+              {Object.entries(languages).map(([key, val]) => (
                 <button
                   key={key}
                   className={language === key ? "active" : ""}
                   onClick={() => changeLanguage(key)}
                 >
-                  {value.name}
+                  {val.name}
                 </button>
               ))}
             </div>
-
             <button className="runBtn" onClick={run}>
-              <Play size={13} />
-              Run
+              <Play size={13} /> Run
             </button>
           </div>
 
-          <Editor
-            height="470px"
-            theme="vs-dark"
+          <CodeEditorWrapper
             language={language}
             value={code}
-            onChange={(value) => setCode(value || "")}
-            options={{
-              minimap: { enabled: false },
-              fontSize: 14,
-              padding: { top: 15 },
-              automaticLayout: true
-            }}
+            onChange={(val) => setCode(val)}
+            height="470px"
           />
         </section>
 
         <section className="outputPanel">
           <div className="outputTabs">
-            <button
-              className={!preview ? "active" : ""}
-              onClick={() => setPreview(false)}
-            >
+            <button className={!preview ? "active" : ""} onClick={() => setPreview(false)}>
               Output
             </button>
-
-            <button
-              className={preview ? "active" : ""}
-              onClick={() => setPreview(true)}
-            >
+            <button className={preview ? "active" : ""} onClick={() => setPreview(true)}>
               Preview
             </button>
           </div>
 
-          {preview &&
-          (language === "html" || language === "css") ? (
-            <iframe
-              className="previewFrame"
-              title="CodeVerse preview"
-              sandbox=""
-              srcDoc={previewDocument}
-            />
+          {preview && (language === "html" || language === "css") ? (
+            <iframe className="previewFrame" title="preview" sandbox="" srcDoc={previewDocument} />
           ) : (
             <pre className="output">{output}</pre>
           )}
 
           <div className="runMeta">
-            <span>
-              <i className="statusDot" />
-              Ready
-            </span>
+            <span><i className="statusDot" /> Ready</span>
             <span>{languages[language]?.name}</span>
           </div>
         </section>
-      </div>
-
-      <div className="hintRow">
-        <Sparkles size={15} />
-        <span>
-          Production execution for Python, C++ and Java should use
-          isolated server-side containers with strict CPU, memory,
-          network and filesystem limits.
-        </span>
       </div>
     </div>
   );
@@ -1015,7 +798,7 @@ function VisualLab() {
       <PageTitle
         eyebrow="VISUAL LAB"
         title="See algorithms think"
-        desc="Interactive visualizations make invisible program state visible."
+        desc="Interactive visualizations making state visible."
       />
 
       <div className="visualGrid">
@@ -1025,43 +808,25 @@ function VisualLab() {
               <span className="eyebrow">DATA STRUCTURES</span>
               <h2>Array playground</h2>
             </div>
-
             <button
               className="secondary"
               onClick={() =>
-                setValues(
-                  Array.from(
-                    { length: 8 },
-                    () => Math.floor(Math.random() * 90) + 10
-                  )
-                )
+                setValues(Array.from({ length: 8 }, () => Math.floor(Math.random() * 90) + 10))
               }
             >
-              <RotateCcw size={15} />
-              Randomize
+              <RotateCcw size={15} /> Randomize
             </button>
           </div>
 
           <div className="bars">
-            {values.map((value, index) => (
-              <div className="barCol" key={index}>
-                <div
-                  className="bar"
-                  style={{ height: `${value * 2}px` }}
-                >
-                  <span>{value}</span>
+            {values.map((val, idx) => (
+              <div className="barCol" key={idx}>
+                <div className="bar" style={{ height: `${val * 2}px` }}>
+                  <span>{val}</span>
                 </div>
-                <small>[{index}]</small>
+                <small>[{idx}]</small>
               </div>
             ))}
-          </div>
-
-          <div className="visualExplain">
-            <b>What you are seeing</b>
-            <p>
-              Each bar is an array value. The index underneath is
-              how a program locates that value in constant time.
-            </p>
           </div>
         </section>
 
@@ -1079,40 +844,22 @@ function VisualLab() {
               <input
                 type="number"
                 value={target}
-                onChange={(event) =>
-                  setTarget(Number(event.target.value))
-                }
+                onChange={(e) => setTarget(Number(e.target.value))}
               />
             </label>
-
-            <button
-              className="primary"
-              onClick={() => setStep(0)}
-            >
-              Start
-            </button>
+            <button className="primary" onClick={() => setStep(0)}>Start</button>
           </div>
 
           <div className="binary">
-            {sorted.map((value, index) => (
+            {sorted.map((val, idx) => (
               <div
-                className={`binaryCell ${
-                  index === mid ? "focus" : ""
-                } ${value === target ? "found" : ""}`}
-                key={index}
+                className={`binaryCell ${idx === mid ? "focus" : ""} ${val === target ? "found" : ""}`}
+                key={idx}
               >
-                {value}
+                {val}
               </div>
             ))}
           </div>
-
-          <p className="muted">
-            {step < 0
-              ? "Choose a target and start the visualization."
-              : sorted.includes(target)
-                ? `Checking the middle of the remaining range. Target ${target} is highlighted.`
-                : "The target is not in this array."}
-          </p>
         </section>
       </div>
     </div>
@@ -1122,11 +869,9 @@ function VisualLab() {
 function Projects({ saved, setSaved, toast }) {
   const [active, setActive] = useState(null);
 
-  const create = (project) => {
-    setSaved((value) =>
-      value.includes(project.id) ? value : [...value, project.id]
-    );
-    toast(`${project.title} added to My Projects`);
+  const create = (p) => {
+    setSaved((val) => (val.includes(p.id) ? val : [...val, p.id]));
+    toast(`${p.title} added to My Projects`);
   };
 
   return (
@@ -1134,99 +879,38 @@ function Projects({ saved, setSaved, toast }) {
       <PageTitle
         eyebrow="PROJECT STUDIO"
         title="Build something real"
-        desc="Projects turn syntax into a portfolio. Start from a guided brief, then make it yours."
+        desc="Transform code into practical work."
       />
 
       <div className="projectGrid">
-        {projects.map((project) => (
-          <article className="projectCard" key={project.id}>
+        {projects.map((p) => (
+          <article className="projectCard" key={p.id}>
             <div className="projectTop">
-              <span className="projectTag">{project.tag}</span>
-              <span>{project.difficulty}</span>
+              <span className="projectTag">{p.tag}</span>
+              <span>{p.difficulty}</span>
             </div>
-
-            <h2>{project.title}</h2>
-            <p>{project.desc}</p>
-
+            <h2>{p.title}</h2>
+            <p>{p.desc}</p>
             <div className="stack">
-              {project.stack.map((stackItem) => (
-                <span key={stackItem}>{stackItem}</span>
+              {p.stack.map((s) => (
+                <span key={s}>{s}</span>
               ))}
             </div>
-
-            <button
-              className="primary full"
-              onClick={() => {
-                create(project);
-                setActive(project);
-              }}
-            >
-              {saved.includes(project.id) ? (
-                <>
-                  <Check size={16} />
-                  In My Projects
-                </>
-              ) : (
-                <>
-                  <Plus size={16} />
-                  Start project
-                </>
-              )}
+            <button className="primary full" onClick={() => { create(p); setActive(p); }}>
+              {saved.includes(p.id) ? "In My Projects" : "Start project"}
             </button>
           </article>
         ))}
       </div>
 
-      <section className="panel aiBuilder">
-        <div className="aiIcon">
-          <Sparkles />
-        </div>
-
-        <div>
-          <span className="eyebrow">AI PROJECT BUILDER</span>
-          <h2>Have an idea? Turn it into milestones.</h2>
-          <p>
-            Describe a project, and the AI layer can generate
-            requirements, learning prerequisites, file structure,
-            tasks and tests.
-          </p>
-        </div>
-
-        <button
-          className="secondary"
-          onClick={() =>
-            setActive({
-              title: "Custom Project",
-              desc: "AI project planning workspace"
-            })
-          }
-        >
-          Create custom
-          <ChevronRight size={16} />
-        </button>
-      </section>
-
       {active && (
         <div className="modalBack" onClick={() => setActive(null)}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <button className="modalClose" onClick={() => setActive(null)}>
-              <X />
-            </button>
-
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modalClose" onClick={() => setActive(null)}><X /></button>
             <span className="eyebrow">PROJECT WORKSPACE</span>
             <h2>{active.title}</h2>
             <p>{active.desc}</p>
-
-            <div className="milestones">
-              <b>1. Understand requirements</b>
-              <b>2. Build the smallest working version</b>
-              <b>3. Add tests</b>
-              <b>4. Polish UI and document it</b>
-            </div>
-
-            <button className="primary full" onClick={() => setActive(null)}>
-              Open workspace
-            </button>
+            <button className="primary full" onClick={() => setActive(null)}>Close</button>
           </div>
         </div>
       )}
@@ -1235,9 +919,7 @@ function Projects({ saved, setSaved, toast }) {
 }
 
 function Challenges({ selected, setSelected, addXp, toast }) {
-  const challenge =
-    challenges.find((item) => item.id === selected) || challenges[0];
-
+  const challenge = challenges.find((item) => item.id === selected) || challenges[0];
   const [code, setCode] = useState(challenge.starter);
 
   useEffect(() => {
@@ -1245,15 +927,12 @@ function Challenges({ selected, setSelected, addXp, toast }) {
   }, [selected]);
 
   const submit = () => {
-    const good =
-      code.replace(/\s/g, "") ===
-      challenge.answer.replace(/\s/g, "");
-
-    if (good) {
+    const isGood = code.replace(/\s/g, "") === challenge.answer.replace(/\s/g, "");
+    if (isGood) {
       addXp(challenge.xp);
       toast(`Challenge passed · +${challenge.xp} XP`);
     } else {
-      toast("Not quite — run the code and inspect the logic.");
+      toast("Not quite — check logic again.");
     }
   };
 
@@ -1262,7 +941,7 @@ function Challenges({ selected, setSelected, addXp, toast }) {
       <PageTitle
         eyebrow="CHALLENGES"
         title="Practice under pressure"
-        desc="Solve small problems, get immediate feedback, and earn XP."
+        desc="Solve focused exercises with immediate verification."
       />
 
       <div className="challengeLayout">
@@ -1275,9 +954,7 @@ function Challenges({ selected, setSelected, addXp, toast }) {
             >
               <div>
                 <b>{item.title}</b>
-                <small>
-                  {item.difficulty} · +{item.xp} XP
-                </small>
+                <small>{item.difficulty} · +{item.xp} XP</small>
               </div>
               <ChevronRight size={16} />
             </button>
@@ -1285,40 +962,25 @@ function Challenges({ selected, setSelected, addXp, toast }) {
         </div>
 
         <section className="panel challengeMain">
-          <span className="eyebrow">
-            {challenge.difficulty.toUpperCase()} ·{" "}
-            {challenge.lang.toUpperCase()}
-          </span>
-
+          <span className="eyebrow">{challenge.difficulty.toUpperCase()} · {challenge.lang.toUpperCase()}</span>
           <h2>{challenge.title}</h2>
           <p>{challenge.prompt}</p>
 
           <div className="challengeEditor">
-            <Editor
-              height="330px"
-              theme="vs-dark"
+            <CodeEditorWrapper
               language={challenge.lang}
               value={code}
-              onChange={(value) => setCode(value || "")}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14
-              }}
+              onChange={(val) => setCode(val)}
+              height="300px"
             />
           </div>
 
           <div className="detailActions">
             <button className="primary" onClick={submit}>
-              <Check size={16} />
-              Check solution
+              <Check size={16} /> Check solution
             </button>
-
-            <button
-              className="secondary"
-              onClick={() => setCode(challenge.starter)}
-            >
-              <RotateCcw size={16} />
-              Reset
+            <button className="secondary" onClick={() => setCode(challenge.starter)}>
+              <RotateCcw size={16} /> Reset
             </button>
           </div>
         </section>
@@ -1329,7 +991,6 @@ function Challenges({ selected, setSelected, addXp, toast }) {
 
 function Debug() {
   const [step, setStep] = useState(0);
-
   const lines = [
     "const scores = [10, 20, 30];",
     "let total = 0;",
@@ -1338,7 +999,6 @@ function Debug() {
     "}",
     "console.log(total);"
   ];
-
   const fixes = [
     "The loop uses <=, so it runs once after the final valid index.",
     "At i = 3, scores[3] is undefined.",
@@ -1348,62 +1008,28 @@ function Debug() {
 
   return (
     <div className="content">
-      <PageTitle
-        eyebrow="DEBUG DETECTIVE"
-        title="Find the bug"
-        desc="Debugging is a reasoning skill. Follow state, not guesses."
-      />
-
+      <PageTitle eyebrow="DEBUG DETECTIVE" title="Find the bug" desc="Reason step-by-step through execution." />
       <div className="debugGrid">
         <section className="panel bugCode">
           <div className="miniBar">
             <span>broken-example.js</span>
             <span className="errorBadge">1 bug</span>
           </div>
-
           {lines.map((line, index) => (
-            <div
-              className={`debugLine ${index === 2 ? "buggy" : ""}`}
-              key={index}
-            >
+            <div className={`debugLine ${index === 2 ? "buggy" : ""}`} key={index}>
               <i>{index + 1}</i>
               <code>{line}</code>
             </div>
           ))}
         </section>
-
         <section className="panel detective">
-          <span className="eyebrow">
-            INVESTIGATION · {step + 1}/4
-          </span>
-
+          <span className="eyebrow">INVESTIGATION · {step + 1}/4</span>
           <h2>Why does the output become NaN?</h2>
-
           <div className="clue">
             <Search />
             <p>{fixes[step]}</p>
           </div>
-
-          <div className="debugSteps">
-            {fixes.map((_, index) => (
-              <button
-                className={index <= step ? "done" : ""}
-                key={index}
-                onClick={() => setStep(index)}
-              >
-                <span>{index + 1}</span>
-                {index === step ? "Current clue" : `Clue ${index + 1}`}
-              </button>
-            ))}
-          </div>
-
-          <button
-            className="primary full"
-            onClick={() => setStep((step + 1) % 4)}
-          >
-            Next clue
-            <ChevronRight size={16} />
-          </button>
+          <button className="primary full" onClick={() => setStep((step + 1) % 4)}>Next clue</button>
         </section>
       </div>
     </div>
@@ -1419,49 +1045,15 @@ function Career() {
 
   return (
     <div className="content">
-      <PageTitle
-        eyebrow="CAREER MODE"
-        title="Turn learning into a direction"
-        desc="Use skill paths and practical milestones instead of random tutorials."
-      />
-
-      <div className="careerHero panel">
-        <div className="careerIcon">
-          <BriefcaseBusiness />
-        </div>
-
-        <div>
-          <span className="eyebrow">YOUR NEXT STEP</span>
-          <h2>Frontend Engineer</h2>
-          <p>
-            Finish JavaScript fundamentals, then build two
-            portfolio projects.
-          </p>
-        </div>
-
-        <button className="primary">
-          Start interview
-          <Bot size={16} />
-        </button>
-      </div>
-
+      <PageTitle eyebrow="CAREER MODE" title="Turn learning into a direction" desc="Structured career paths." />
       <div className="pathGrid">
-        {paths.map((path) => (
-          <div className="panel path" key={path[0]}>
+        {paths.map((p) => (
+          <div className="panel path" key={p[0]}>
             <span className="eyebrow">CAREER PATH</span>
-            <h2>{path[0]}</h2>
-            <p>{path[1]}</p>
-
-            <div className="progress">
-              <span style={{ width: path[2] }} />
-            </div>
-
-            <b>{path[2]} complete</b>
-
-            <button className="textBtn">
-              View roadmap
-              <ChevronRight size={16} />
-            </button>
+            <h2>{p[0]}</h2>
+            <p>{p[1]}</p>
+            <div className="progress"><span style={{ width: p[2] }} /></div>
+            <b>{p[2]} complete</b>
           </div>
         ))}
       </div>
@@ -1472,58 +1064,12 @@ function Career() {
 function GitHubPage() {
   return (
     <div className="content">
-      <PageTitle
-        eyebrow="GIT & GITHUB"
-        title="Learn the workflow"
-        desc="Practice version control concepts before connecting a real GitHub account."
-      />
-
+      <PageTitle eyebrow="GIT & GITHUB" title="Learn the workflow" desc="Version control practice." />
       <div className="gitGrid">
         <div className="panel">
           <Github size={30} />
           <h2>Commit simulator</h2>
-          <p className="muted">
-            Understand the working tree → staging → commit flow.
-          </p>
-
-          <div className="gitFlow">
-            <span>Working tree</span>
-            <ChevronRight />
-            <span>Staged</span>
-            <ChevronRight />
-            <span>Commit</span>
-          </div>
-
-          <button className="primary">Create practice commit</button>
-        </div>
-
-        <div className="panel">
-          <GitBranch size={30} />
-          <h2>Branch lab</h2>
-          <p className="muted">
-            Experiment with feature branches, merges and conflicts in a safe
-            learning model.
-          </p>
-
-          <div className="branchGraph">
-            <span>main</span>
-            <i />
-            <span>feature</span>
-          </div>
-
-          <button className="secondary">Open branch lab</button>
-        </div>
-      </div>
-
-      <div className="securityNote">
-        <Github />
-        <div>
-          <b>Real GitHub integration</b>
-          <p>
-            For production OAuth/API access, add a backend that
-            stores OAuth tokens securely. Never put GitHub secrets
-            in client-side source.
-          </p>
+          <p className="muted">Understand the working tree → staging → commit flow.</p>
         </div>
       </div>
     </div>
@@ -1533,47 +1079,17 @@ function GitHubPage() {
 function SettingsPage({ theme, setTheme, reset }) {
   return (
     <div className="content">
-      <PageTitle
-        eyebrow="SETTINGS"
-        title="Your learning environment"
-        desc="Control appearance and local learning data."
-      />
-
+      <PageTitle eyebrow="SETTINGS" title="Your learning environment" desc="Theme & storage control." />
       <div className="settingsGrid">
         <div className="panel setting">
-          <div>
-            <Moon />
-            <div>
-              <b>Appearance</b>
-              <p>Switch between dark and light UI.</p>
-            </div>
-          </div>
-
-          <button
-            className="switch"
-            onClick={() =>
-              setTheme(theme === "dark" ? "light" : "dark")
-            }
-          >
+          <div><Moon /><div><b>Appearance</b><p>Switch dark/light UI.</p></div></div>
+          <button className="switch" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
             <span className={theme === "dark" ? "on" : ""} />
           </button>
         </div>
-
         <div className="panel setting">
-          <div>
-            <RotateCcw />
-            <div>
-              <b>Reset local progress</b>
-              <p>
-                Clears XP, lesson completion, projects and settings
-                on this browser.
-              </p>
-            </div>
-          </div>
-
-          <button className="secondary danger" onClick={reset}>
-            Reset data
-          </button>
+          <div><RotateCcw /><div><b>Reset local progress</b><p>Clears local data.</p></div></div>
+          <button className="secondary danger" onClick={reset}>Reset data</button>
         </div>
       </div>
     </div>
@@ -1581,20 +1097,6 @@ function SettingsPage({ theme, setTheme, reset }) {
 }
 
 const rootElement = document.getElementById("root");
-
 if (rootElement) {
-  try {
-    createRoot(rootElement).render(<App />);
-  } catch (error) {
-    console.error("CodeVerse startup error:", error);
-    rootElement.innerHTML = `
-      <div style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#070a12;color:#eef2ff;font-family:system-ui,sans-serif;">
-        <div style="width:min(700px,100%);padding:30px;border:1px solid #273044;border-radius:18px;background:#0d121e;">
-          <h1>CodeVerse couldn't start</h1>
-          <p style="color:#8994aa;line-height:1.6;">A JavaScript error prevented CodeVerse from loading.</p>
-          <pre style="white-space:pre-wrap;overflow:auto;padding:16px;border-radius:12px;background:#070a12;color:#ff8fa3;">${String(error?.stack || error)}</pre>
-        </div>
-      </div>
-    `;
-  }
+  createRoot(rootElement).render(<App />);
 }
