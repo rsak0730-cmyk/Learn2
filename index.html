@@ -1,23 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <meta
-    name="theme-color"
-    content="#070a12"
-  >
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#070a12" />
   <meta
     name="description"
     content="CodeVerse — Learn programming through interactive lessons, coding challenges, visual labs and projects."
-  >
-
+  />
   <title>CodeVerse</title>
 
   <style>
@@ -54,6 +44,7 @@
       justify-content: center;
       background: #070a12;
       z-index: 999999;
+      transition: opacity 0.3s ease;
     }
 
     .loader {
@@ -70,39 +61,10 @@
         transform: rotate(360deg);
       }
     }
-
-    .error {
-      max-width: 620px;
-      margin: 30px;
-      padding: 28px;
-      border: 1px solid #263044;
-      border-radius: 18px;
-      background: #0d121e;
-      color: #eef2ff;
-    }
-
-    .error h1 {
-      margin-top: 0;
-    }
-
-    .error p {
-      color: #8994aa;
-      line-height: 1.6;
-    }
-
-    .error pre {
-      padding: 14px;
-      overflow: auto;
-      white-space: pre-wrap;
-      border-radius: 10px;
-      background: #070a12;
-      color: #ff8fa3;
-    }
   </style>
 </head>
 
 <body>
-
   <div id="loading">
     <div class="loader"></div>
   </div>
@@ -112,26 +74,17 @@
   <script>
     window.addEventListener("error", function (event) {
       console.error(event.error || event.message);
+      var loader = document.getElementById("loading");
+      if (loader) loader.remove();
     });
 
-    window.addEventListener(
-      "unhandledrejection",
-      function (event) {
-        console.error(event.reason);
-      }
-    );
-
-    setTimeout(function () {
-      var loading = document.getElementById("loading");
-
-      if (loading) {
-        loading.remove();
-      }
-    }, 10000);
+    window.addEventListener("unhandledrejection", function (event) {
+      console.error(event.reason);
+      var loader = document.getElementById("loading");
+      if (loader) loader.remove();
+    });
   </script>
 
-  <!-- Vite development/source entry -->
-  <script type="module" src="./src/main.jsx"></script>
-
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

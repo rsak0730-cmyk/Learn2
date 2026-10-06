@@ -13,7 +13,8 @@ import {
   FolderKanban,
   Github,
   GitBranch,
-  Home,
+  Home as HomeIcon,
+  Lightbulb,
   Menu,
   Moon,
   Play,
@@ -228,30 +229,12 @@ const projects = [
 ];
 
 const languages = {
-  javascript: {
-    name: "JavaScript",
-    ext: "js"
-  },
-  python: {
-    name: "Python",
-    ext: "py"
-  },
-  html: {
-    name: "HTML",
-    ext: "html"
-  },
-  css: {
-    name: "CSS",
-    ext: "css"
-  },
-  cpp: {
-    name: "C++",
-    ext: "cpp"
-  },
-  java: {
-    name: "Java",
-    ext: "java"
-  }
+  javascript: { name: "JavaScript", ext: "js" },
+  python: { name: "Python", ext: "py" },
+  html: { name: "HTML", ext: "html" },
+  css: { name: "CSS", ext: "css" },
+  cpp: { name: "C++", ext: "cpp" },
+  java: { name: "Java", ext: "java" }
 };
 
 const defaults = {
@@ -285,7 +268,6 @@ int main() {
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE));
-
     return saved || {};
   } catch {
     return {};
@@ -299,27 +281,21 @@ function App() {
   const [theme, setTheme] = useState(saved.theme || "dark");
   const [xp, setXp] = useState(saved.xp || 420);
   const [streak, setStreak] = useState(saved.streak || 4);
-
-  const [completed, setCompleted] = useState(
-    saved.completed || ["variables"]
-  );
-
-  const [savedProjects, setSavedProjects] = useState(
-    saved.savedProjects || []
-  );
-
+  const [completed, setCompleted] = useState(saved.completed || ["variables"]);
+  const [savedProjects, setSavedProjects] = useState(saved.savedProjects || []);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const [selectedLesson, setSelectedLesson] = useState(
-    saved.selectedLesson || lessons[0].id
-  );
-
-  const [selectedChallenge, setSelectedChallenge] = useState(
-    saved.selectedChallenge || challenges[0].id
-  );
-
+  const [selectedLesson, setSelectedLesson] = useState(saved.selectedLesson || lessons[0].id);
+  const [selectedChallenge, setSelectedChallenge] = useState(saved.selectedChallenge || challenges[0].id);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    const loader = document.getElementById("loading");
+    if (loader) {
+      loader.style.opacity = "0";
+      setTimeout(() => loader.remove(), 300);
+    }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(
@@ -373,7 +349,7 @@ function App() {
   };
 
   const nav = [
-    ["home", "Home", Home],
+    ["home", "Home", HomeIcon],
     ["learn", "Learn", BookOpen],
     ["playground", "Playground", Terminal],
     ["visual", "Visual Lab", Brain],
@@ -423,9 +399,7 @@ function App() {
               }}
             >
               <Icon size={18} />
-
               <span>{label}</span>
-
               {id === "challenges" && <em>3</em>}
             </button>
           ))}
@@ -434,9 +408,7 @@ function App() {
         <div className="sidebarBottom">
           <div className="streak">
             <Flame size={17} />
-
             <b>{streak} day streak</b>
-
             <small>Keep it going!</small>
           </div>
         </div>
@@ -453,7 +425,6 @@ function App() {
 
           <div className="search">
             <Search size={17} />
-
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -501,9 +472,7 @@ function App() {
         )}
 
         {page === "playground" && <Playground />}
-
         {page === "visual" && <VisualLab />}
-
         {page === "projects" && (
           <Projects
             saved={savedProjects}
@@ -511,7 +480,6 @@ function App() {
             toast={setToast}
           />
         )}
-
         {page === "challenges" && (
           <Challenges
             selected={selectedChallenge}
@@ -521,13 +489,9 @@ function App() {
             toast={setToast}
           />
         )}
-
         {page === "debug" && <Debug />}
-
         {page === "career" && <Career />}
-
         {page === "github" && <GitHubPage />}
-
         {page === "settings" && (
           <SettingsPage
             theme={theme}
@@ -555,12 +519,9 @@ function PageTitle({ eyebrow, title, desc, children }) {
     <div className="pageTitle">
       <div>
         <span className="eyebrow">{eyebrow}</span>
-
         <h1>{title}</h1>
-
         <p>{desc}</p>
       </div>
-
       {children}
     </div>
   );
@@ -622,7 +583,6 @@ function Home({ go, xp, streak, completed, finish }) {
       <div className="stats">
         <div className="stat">
           <Trophy size={21} />
-
           <div>
             <b>{xp} XP</b>
             <small>Total experience</small>
@@ -631,7 +591,6 @@ function Home({ go, xp, streak, completed, finish }) {
 
         <div className="stat">
           <Flame size={21} />
-
           <div>
             <b>{streak} days</b>
             <small>Current streak</small>
@@ -640,7 +599,6 @@ function Home({ go, xp, streak, completed, finish }) {
 
         <div className="stat">
           <Check size={21} />
-
           <div>
             <b>{completed.length}</b>
             <small>Lessons complete</small>
@@ -649,7 +607,6 @@ function Home({ go, xp, streak, completed, finish }) {
 
         <div className="stat">
           <Target size={21} />
-
           <div>
             <b>3</b>
             <small>Challenges waiting</small>
@@ -664,7 +621,6 @@ function Home({ go, xp, streak, completed, finish }) {
               <span className="eyebrow">CONTINUE</span>
               <h2>{next.title}</h2>
             </div>
-
             <span className="xpTag">+{next.xp} XP</span>
           </div>
 
@@ -687,9 +643,7 @@ function Home({ go, xp, streak, completed, finish }) {
           <button
             className="primary"
             style={{ marginTop: 15 }}
-            onClick={() => {
-              go("learn");
-            }}
+            onClick={() => go("learn")}
           >
             Open lesson
             <ChevronRight size={16} />
@@ -711,7 +665,6 @@ function Home({ go, xp, streak, completed, finish }) {
 
           <div className="aiPrompt">
             <span>Explain recursion visually...</span>
-
             <button>
               <Send size={14} />
             </button>
@@ -926,8 +879,6 @@ function Playground() {
             : "Program finished with no console output."
         );
       } catch (error) {
-        console.log = console.log;
-
         setOutput(
           `Error: ${error?.message || String(error)}`
         );
@@ -992,13 +943,9 @@ function Playground() {
             value={code}
             onChange={(value) => setCode(value || "")}
             options={{
-              minimap: {
-                enabled: false
-              },
+              minimap: { enabled: false },
               fontSize: 14,
-              padding: {
-                top: 15
-              },
+              padding: { top: 15 },
               automaticLayout: true
             }}
           />
@@ -1038,7 +985,6 @@ function Playground() {
               <i className="statusDot" />
               Ready
             </span>
-
             <span>{languages[language]?.name}</span>
           </div>
         </section>
@@ -1057,17 +1003,7 @@ function Playground() {
 }
 
 function VisualLab() {
-  const [values, setValues] = useState([
-    34,
-    72,
-    51,
-    91,
-    18,
-    64,
-    42,
-    83
-  ]);
-
+  const [values, setValues] = useState([34, 72, 51, 91, 18, 64, 42, 83]);
   const [target, setTarget] = useState(64);
   const [step, setStep] = useState(-1);
 
@@ -1095,9 +1031,7 @@ function VisualLab() {
               onClick={() =>
                 setValues(
                   Array.from(
-                    {
-                      length: 8
-                    },
+                    { length: 8 },
                     () => Math.floor(Math.random() * 90) + 10
                   )
                 )
@@ -1113,13 +1047,10 @@ function VisualLab() {
               <div className="barCol" key={index}>
                 <div
                   className="bar"
-                  style={{
-                    height: `${value * 2}px`
-                  }}
+                  style={{ height: `${value * 2}px` }}
                 >
                   <span>{value}</span>
                 </div>
-
                 <small>[{index}]</small>
               </div>
             ))}
@@ -1127,7 +1058,6 @@ function VisualLab() {
 
           <div className="visualExplain">
             <b>What you are seeing</b>
-
             <p>
               Each bar is an array value. The index underneath is
               how a program locates that value in constant time.
@@ -1146,7 +1076,6 @@ function VisualLab() {
           <div className="searchControl">
             <label>
               Target
-
               <input
                 type="number"
                 value={target}
@@ -1195,11 +1124,8 @@ function Projects({ saved, setSaved, toast }) {
 
   const create = (project) => {
     setSaved((value) =>
-      value.includes(project.id)
-        ? value
-        : [...value, project.id]
+      value.includes(project.id) ? value : [...value, project.id]
     );
-
     toast(`${project.title} added to My Projects`);
   };
 
@@ -1220,7 +1146,6 @@ function Projects({ saved, setSaved, toast }) {
             </div>
 
             <h2>{project.title}</h2>
-
             <p>{project.desc}</p>
 
             <div className="stack">
@@ -1259,9 +1184,7 @@ function Projects({ saved, setSaved, toast }) {
 
         <div>
           <span className="eyebrow">AI PROJECT BUILDER</span>
-
           <h2>Have an idea? Turn it into milestones.</h2>
-
           <p>
             Describe a project, and the AI layer can generate
             requirements, learning prerequisites, file structure,
@@ -1284,25 +1207,14 @@ function Projects({ saved, setSaved, toast }) {
       </section>
 
       {active && (
-        <div
-          className="modalBack"
-          onClick={() => setActive(null)}
-        >
-          <div
-            className="modal"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              className="modalClose"
-              onClick={() => setActive(null)}
-            >
+        <div className="modalBack" onClick={() => setActive(null)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <button className="modalClose" onClick={() => setActive(null)}>
               <X />
             </button>
 
             <span className="eyebrow">PROJECT WORKSPACE</span>
-
             <h2>{active.title}</h2>
-
             <p>{active.desc}</p>
 
             <div className="milestones">
@@ -1312,10 +1224,7 @@ function Projects({ saved, setSaved, toast }) {
               <b>4. Polish UI and document it</b>
             </div>
 
-            <button
-              className="primary full"
-              onClick={() => setActive(null)}
-            >
+            <button className="primary full" onClick={() => setActive(null)}>
               Open workspace
             </button>
           </div>
@@ -1325,15 +1234,9 @@ function Projects({ saved, setSaved, toast }) {
   );
 }
 
-function Challenges({
-  selected,
-  setSelected,
-  addXp,
-  toast
-}) {
+function Challenges({ selected, setSelected, addXp, toast }) {
   const challenge =
-    challenges.find((item) => item.id === selected) ||
-    challenges[0];
+    challenges.find((item) => item.id === selected) || challenges[0];
 
   const [code, setCode] = useState(challenge.starter);
 
@@ -1348,13 +1251,9 @@ function Challenges({
 
     if (good) {
       addXp(challenge.xp);
-      toast(
-        `Challenge passed · +${challenge.xp} XP`
-      );
+      toast(`Challenge passed · +${challenge.xp} XP`);
     } else {
-      toast(
-        "Not quite — run the code and inspect the logic."
-      );
+      toast("Not quite — run the code and inspect the logic.");
     }
   };
 
@@ -1370,20 +1269,16 @@ function Challenges({
         <div className="challengeList">
           {challenges.map((item) => (
             <button
-              className={
-                item.id === selected ? "active" : ""
-              }
+              className={item.id === selected ? "active" : ""}
               key={item.id}
               onClick={() => setSelected(item.id)}
             >
               <div>
                 <b>{item.title}</b>
-
                 <small>
                   {item.difficulty} · +{item.xp} XP
                 </small>
               </div>
-
               <ChevronRight size={16} />
             </button>
           ))}
@@ -1396,7 +1291,6 @@ function Challenges({
           </span>
 
           <h2>{challenge.title}</h2>
-
           <p>{challenge.prompt}</p>
 
           <div className="challengeEditor">
@@ -1407,9 +1301,7 @@ function Challenges({
               value={code}
               onChange={(value) => setCode(value || "")}
               options={{
-                minimap: {
-                  enabled: false
-                },
+                minimap: { enabled: false },
                 fontSize: 14
               }}
             />
@@ -1471,9 +1363,7 @@ function Debug() {
 
           {lines.map((line, index) => (
             <div
-              className={`debugLine ${
-                index === 2 ? "buggy" : ""
-              }`}
+              className={`debugLine ${index === 2 ? "buggy" : ""}`}
               key={index}
             >
               <i>{index + 1}</i>
@@ -1491,7 +1381,6 @@ function Debug() {
 
           <div className="clue">
             <Search />
-
             <p>{fixes[step]}</p>
           </div>
 
@@ -1503,10 +1392,7 @@ function Debug() {
                 onClick={() => setStep(index)}
               >
                 <span>{index + 1}</span>
-
-                {index === step
-                  ? "Current clue"
-                  : `Clue ${index + 1}`}
+                {index === step ? "Current clue" : `Clue ${index + 1}`}
               </button>
             ))}
           </div>
@@ -1526,21 +1412,9 @@ function Debug() {
 
 function Career() {
   const paths = [
-    [
-      "Frontend Engineer",
-      "HTML · CSS · JS · React",
-      "72%"
-    ],
-    [
-      "Backend Engineer",
-      "APIs · Databases · Systems",
-      "34%"
-    ],
-    [
-      "AI Engineer",
-      "Python · ML · LLMs",
-      "18%"
-    ]
+    ["Frontend Engineer", "HTML · CSS · JS · React", "72%"],
+    ["Backend Engineer", "APIs · Databases · Systems", "34%"],
+    ["AI Engineer", "Python · ML · LLMs", "18%"]
   ];
 
   return (
@@ -1558,9 +1432,7 @@ function Career() {
 
         <div>
           <span className="eyebrow">YOUR NEXT STEP</span>
-
           <h2>Frontend Engineer</h2>
-
           <p>
             Finish JavaScript fundamentals, then build two
             portfolio projects.
@@ -1577,9 +1449,7 @@ function Career() {
         {paths.map((path) => (
           <div className="panel path" key={path[0]}>
             <span className="eyebrow">CAREER PATH</span>
-
             <h2>{path[0]}</h2>
-
             <p>{path[1]}</p>
 
             <div className="progress">
@@ -1611,9 +1481,7 @@ function GitHubPage() {
       <div className="gitGrid">
         <div className="panel">
           <Github size={30} />
-
           <h2>Commit simulator</h2>
-
           <p className="muted">
             Understand the working tree → staging → commit flow.
           </p>
@@ -1626,19 +1494,15 @@ function GitHubPage() {
             <span>Commit</span>
           </div>
 
-          <button className="primary">
-            Create practice commit
-          </button>
+          <button className="primary">Create practice commit</button>
         </div>
 
         <div className="panel">
           <GitBranch size={30} />
-
           <h2>Branch lab</h2>
-
           <p className="muted">
-            Experiment with feature branches, merges and conflicts
-            in a safe learning model.
+            Experiment with feature branches, merges and conflicts in a safe
+            learning model.
           </p>
 
           <div className="branchGraph">
@@ -1647,18 +1511,14 @@ function GitHubPage() {
             <span>feature</span>
           </div>
 
-          <button className="secondary">
-            Open branch lab
-          </button>
+          <button className="secondary">Open branch lab</button>
         </div>
       </div>
 
       <div className="securityNote">
         <Github />
-
         <div>
           <b>Real GitHub integration</b>
-
           <p>
             For production OAuth/API access, add a backend that
             stores OAuth tokens securely. Never put GitHub secrets
@@ -1683,13 +1543,9 @@ function SettingsPage({ theme, setTheme, reset }) {
         <div className="panel setting">
           <div>
             <Moon />
-
             <div>
               <b>Appearance</b>
-
-              <p>
-                Switch between dark and light UI.
-              </p>
+              <p>Switch between dark and light UI.</p>
             </div>
           </div>
 
@@ -1699,19 +1555,15 @@ function SettingsPage({ theme, setTheme, reset }) {
               setTheme(theme === "dark" ? "light" : "dark")
             }
           >
-            <span
-              className={theme === "dark" ? "on" : ""}
-            />
+            <span className={theme === "dark" ? "on" : ""} />
           </button>
         </div>
 
         <div className="panel setting">
           <div>
             <RotateCcw />
-
             <div>
               <b>Reset local progress</b>
-
               <p>
                 Clears XP, lesson completion, projects and settings
                 on this browser.
@@ -1719,10 +1571,7 @@ function SettingsPage({ theme, setTheme, reset }) {
             </div>
           </div>
 
-          <button
-            className="secondary danger"
-            onClick={reset}
-          >
+          <button className="secondary danger" onClick={reset}>
             Reset data
           </button>
         </div>
@@ -1731,87 +1580,21 @@ function SettingsPage({ theme, setTheme, reset }) {
   );
 }
 
-/*
- * IMPORTANT:
- * This is intentionally protected so a missing #root element
- * produces a useful error instead of a completely blank screen.
- */
 const rootElement = document.getElementById("root");
 
-if (!rootElement) {
-  document.body.innerHTML = `
-    <div style="
-      min-height:100vh;
-      display:grid;
-      place-items:center;
-      padding:24px;
-      background:#070a12;
-      color:#eef2ff;
-      font-family:system-ui,sans-serif;
-    ">
-      <div style="
-        max-width:600px;
-        padding:30px;
-        border:1px solid #273044;
-        border-radius:18px;
-        background:#0d121e;
-      ">
-        <h1>CodeVerse failed to start</h1>
-        <p style="color:#8994aa;line-height:1.6">
-          The application root element could not be found.
-          Check that index.html contains an element with id="root".
-        </p>
+if (rootElement) {
+  try {
+    createRoot(rootElement).render(<App />);
+  } catch (error) {
+    console.error("CodeVerse startup error:", error);
+    rootElement.innerHTML = `
+      <div style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#070a12;color:#eef2ff;font-family:system-ui,sans-serif;">
+        <div style="width:min(700px,100%);padding:30px;border:1px solid #273044;border-radius:18px;background:#0d121e;">
+          <h1>CodeVerse couldn't start</h1>
+          <p style="color:#8994aa;line-height:1.6;">A JavaScript error prevented CodeVerse from loading.</p>
+          <pre style="white-space:pre-wrap;overflow:auto;padding:16px;border-radius:12px;background:#070a12;color:#ff8fa3;">${String(error?.stack || error)}</pre>
+        </div>
       </div>
-    </div>
-  `;
-
-  throw new Error("CodeVerse root element was not found.");
-}
-
-try {
-  createRoot(rootElement).render(
-    <App />
-  );
-} catch (error) {
-  console.error("CodeVerse startup error:", error);
-
-  rootElement.innerHTML = `
-    <div style="
-      min-height:100vh;
-      display:grid;
-      place-items:center;
-      padding:24px;
-      background:#070a12;
-      color:#eef2ff;
-      font-family:system-ui,sans-serif;
-    ">
-      <div style="
-        width:min(700px,100%);
-        padding:30px;
-        border:1px solid #273044;
-        border-radius:18px;
-        background:#0d121e;
-      ">
-        <h1>CodeVerse couldn't start</h1>
-
-        <p style="
-          color:#8994aa;
-          line-height:1.6;
-        ">
-          A JavaScript error prevented CodeVerse from loading.
-        </p>
-
-        <pre style="
-          white-space:pre-wrap;
-          overflow:auto;
-          padding:16px;
-          border-radius:12px;
-          background:#070a12;
-          color:#ff8fa3;
-        ">${String(
-          error?.stack || error
-        )}</pre>
-      </div>
-    </div>
-  `;
+    `;
+  }
 }
