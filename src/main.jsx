@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  Award,
   BookOpen,
   CheckCircle,
   ChevronRight,
@@ -13,54 +12,52 @@ import {
   Play,
   RotateCcw,
   Sparkles,
-  User,
   Zap,
   ArrowLeft
 } from "lucide-react";
 import "./styles.css";
 
 const PROFILE_KEY = "codeverse_user_profile";
-const TRACK_KEY = "codeverse_learning_track";
+const ACTIVE_MODEL = "gemini-2.5-flash"; // Working production endpoint
 
-const DEFAULT_CURRICULUM = {
+const CURRICULUM = {
   Python: [
     {
       id: 1,
-      title: "Variables & Memory Boxes",
-      summary: "Learn how to store text and numbers in memory.",
-      analogy: "Think of a variable as a labeled storage box where you keep values.",
-      starterCode: 'name = "Explorer"\nxp = 100\nprint(f"Welcome {name}, XP: {xp}")',
-      task: 'Create a variable named `score` set to 50, then print it using `print(score)`.'
+      title: "Variables & Data Types",
+      summary: "Understand how computers remember information using labeled variables.",
+      analogy: "Like labeled kitchen jars: a jar labeled 'sugar' holds sugar, a jar labeled 'score' holds 100.",
+      starterCode: 'player_name = "Manish"\nscore = 100\nprint(f"Player: {player_name}, Score: {score}")',
+      task: 'Create a variable named `user_age` set to your age (a number), then write: `print(user_age)`.'
     },
     {
       id: 2,
-      title: "Conditions & Decision Making",
-      summary: "Teach your program to make choices using if/else.",
-      analogy: "Like a traffic light: if green, drive; if red, stop.",
-      starterCode: 'score = 75\n\nif score >= 50:\n    print("You passed!")\nelse:\n    print("Try again!")',
-      task: 'Write an if-statement that prints "High" if score is greater than 80, otherwise prints "Low".'
+      title: "Conditions & Smart Decisions",
+      summary: "Teach your program to choose different paths using if and else logic.",
+      analogy: "Like an umbrella check: if it rains, bring an umbrella; otherwise, wear sunglasses.",
+      starterCode: 'marks = 85\n\nif marks >= 50:\n    print("Exam Passed!")\nelse:\n    print("Review again")',
+      task: 'Write an if-statement checking if `marks >= 80`. If true, print "Grade A", else print "Grade B".'
     },
     {
       id: 3,
-      title: "Loops & Repetition",
-      summary: "Automate repetitive tasks with for-loops.",
-      analogy: "Like counting reps while exercising.",
-      starterCode: 'for i in range(1, 4):\n    print(f"Repetition #{i}")',
-      task: 'Write a loop that prints the numbers 0, 1, 2 using `range(3)`.'
+      title: "Loops: Automating Repetition",
+      summary: "Run instructions repeatedly without writing duplicate lines of code.",
+      analogy: "Like setting an alarm ring or running laps around a track.",
+      starterCode: 'for lap in range(1, 4):\n    print(f"Running lap #{lap}")',
+      task: 'Write a for-loop that counts from 1 to 5 using `for i in range(1, 6):` and prints each number.'
     },
     {
       id: 4,
-      title: "Functions: Reusable Spells",
-      summary: "Package logic into reusable blocks.",
-      analogy: "Like a recipe: write the recipe once, cook it whenever needed.",
-      starterCode: 'def greet(user):\n    return f"Hello, {user}!"\n\nprint(greet("Manish"))',
-      task: 'Define a function `add_five(x)` that returns `x + 5`.'
+      title: "Functions: Custom Commands",
+      summary: "Group code into a reusable tool you can execute anytime by name.",
+      analogy: "Like a microwave button: press 'Popcorn' and it automatically executes preset cooking logic.",
+      starterCode: 'def greet(name):\n    return f"Hello, {name}!"\n\nprint(greet("Explorer"))',
+      task: 'Define a function `add_numbers(a, b)` that returns `a + b`, then test it with `print(add_numbers(10, 20))`.'
     }
   ]
 };
 
 function App() {
-  // Profile State
   const [profile, setProfile] = useState(() => {
     try {
       return (
@@ -79,11 +76,6 @@ function App() {
   });
 
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem("gemini_api_key") || "");
-  const [selectedModel, setSelectedModel] = useState(
-    localStorage.getItem("gemini_selected_model") || "gemini-2.5-flash"
-  );
-
-  // Navigation State
   const [activeLesson, setActiveLesson] = useState(null);
   const [userCode, setUserCode] = useState("");
   const [codeOutput, setCodeOutput] = useState("");
@@ -99,18 +91,17 @@ function App() {
     const loader = document.getElementById("loading");
     if (loader) {
       loader.style.opacity = "0";
-      setTimeout(() => loader.remove(), 250);
+      setTimeout(() => loader.remove(), 200);
     }
   }, []);
 
-  // In-browser Python initialization
-  const runPythonCode = async (code) => {
-    setCodeOutput("Executing Python in-browser...");
+  const runPythonCode = async () => {
+    setCodeOutput("Running Python via in-browser engine...");
     try {
       let py = pyodide;
       if (!py) {
         if (!window.loadPyodide) {
-          setCodeOutput("WebAssembly engine loading... please wait a moment.");
+          setCodeOutput("WebAssembly Python is initializing... please wait 3 seconds and retry.");
           return;
         }
         py = await window.loadPyodide();
@@ -122,41 +113,41 @@ import io
 sys.stdout = io.StringIO()
 sys.stderr = io.StringIO()
 `);
-      py.runPython(code);
-      const out = py.runPython("sys.stdout.getvalue()");
-      const err = py.runPython("sys.stderr.getvalue()");
-      setCodeOutput(out || err || "Code finished with no output.");
-    } catch (e) {
-      setCodeOutput(`Execution Error: ${e.message || e}`);
+      py.runPython(userCode);
+      const stdout = py.runPython("sys.stdout.getvalue()");
+      const stderr = py.runPython("sys.stderr.getvalue()");
+      setCodeOutput(stdout || stderr || "Execution finished with no output.");
+    } catch (err) {
+      setCodeOutput(`Execution Error: ${err.message || err}`);
     }
   };
 
-  // AI Verification for Lesson Task
-  const verifyCodeWithAI = async () => {
-    if (!geminiKey) {
-      alert("Please enter your free Gemini API Key in the top bar to get real-time AI checking!");
+  const verifyWithAI = async () => {
+    if (!geminiKey.trim()) {
+      alert("Please paste your Gemini API Key in the top header first.");
       return;
     }
 
     setIsVerifying(true);
-    setAiFeedback("AI Teacher is inspecting your code...");
+    setAiFeedback("Teacher is reviewing your code logic...");
 
-    const prompt = `You are a supportive, high-energy coding tutor reviewing a beginner student's work.
+    const prompt = `You are an encouraging coding teacher reviewing a student's answer.
 Lesson: "${activeLesson.title}"
-Task Requirements: "${activeLesson.task}"
+Assigned Task: "${activeLesson.task}"
 Student's Code:
-\`\`\`${profile.language}${userCode}
+\`\`\`python
+${userCode}
 \`\`\`
 
-Evaluate if the code satisfies the task correctly.
-Return strictly valid JSON in this format:
+Evaluate if the code correctly fulfills the task.
+Return ONLY valid JSON matching this exact structure:
 {
   "passed": true,
-  "comment": "Encouraging remark and explanation of how well they solved it."
+  "comment": "1-2 sentences of encouraging feedback or advice."
 }`;
 
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiKey}`;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${ACTIVE_MODEL}:generateContent?key=${geminiKey.trim()}`;
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -164,31 +155,34 @@ Return strictly valid JSON in this format:
       });
 
       const data = await res.json();
-      let raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
-      const result = JSON.parse(raw);
+      if (data.error) {
+        setAiFeedback(`Gemini Error: ${data.error.message}`);
+      } else {
+        let raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+        raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
+        const result = JSON.parse(raw);
+        setAiFeedback(result.comment);
 
-      setAiFeedback(result.comment);
-
-      if (result.passed) {
-        if (!profile.completedLessons.includes(activeLesson.id)) {
-          setProfile((prev) => ({
-            ...prev,
-            xp: prev.xp + 100,
-            completedLessons: [...prev.completedLessons, activeLesson.id]
-          }));
+        if (result.passed) {
+          if (!profile.completedLessons.includes(activeLesson.id)) {
+            setProfile((prev) => ({
+              ...prev,
+              xp: prev.xp + 100,
+              completedLessons: [...prev.completedLessons, activeLesson.id]
+            }));
+          }
         }
       }
-    } catch (err) {
-      setAiFeedback("Could not complete AI evaluation. Please verify your Gemini Key.");
+    } catch (e) {
+      setAiFeedback("Could not reach Gemini API. Please check your key.");
     } finally {
       setIsVerifying(false);
     }
   };
 
-  const lessonsList = DEFAULT_CURRICULUM[profile.language] || DEFAULT_CURRICULUM["Python"];
+  const currentLessons = CURRICULUM[profile.language] || CURRICULUM["Python"];
 
-  // 1. Profile Onboarding Screen (If no user name is set)
+  // 1. Profile Creation View
   if (!profile.name) {
     return (
       <div className="onboard-screen">
@@ -196,37 +190,35 @@ Return strictly valid JSON in this format:
           <div className="brandMark" style={{ margin: "0 auto 16px" }}>
             <Code2 size={24} />
           </div>
-          <h1>Create Your Coding Profile</h1>
-          <p style={{ color: "var(--muted)", fontSize: "14px", marginBottom: "24px" }}>
-            Your personal AI tutor will tailor daily practice and milestones to your pace.
+          <h1>Create Your Student Profile</h1>
+          <p style={{ color: "var(--muted)", fontSize: "14px", marginBottom: "22px" }}>
+            Start your personalized programming curriculum with in-browser practice and AI guidance.
           </p>
 
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const formData = new FormData(e.target);
-              const name = formData.get("name").trim();
-              const lang = formData.get("language");
+              const name = e.target.username.value.trim();
               if (!name) return;
-              setProfile((prev) => ({ ...prev, name, language: lang }));
+              setProfile((prev) => ({ ...prev, name }));
             }}
           >
             <label className="input-label">Your Name</label>
             <input
-              name="name"
+              name="username"
               type="text"
-              placeholder="e.g. Alex"
+              placeholder="e.g. Manish"
               required
               className="styled-input"
             />
 
-            <label className="input-label" style={{ marginTop: "14px" }}>What do you want to learn?</label>
-            <select name="language" className="styled-input">
-              <option value="Python">Python (Data, Backend, Scripting)</option>
+            <label className="input-label" style={{ marginTop: "14px" }}>Language Track</label>
+            <select className="styled-input" disabled>
+              <option>Python Fundamentals</option>
             </select>
 
             <button type="submit" className="primary full" style={{ marginTop: "24px" }}>
-              Start Learning Journey <ChevronRight size={16} />
+              Build My Learning Track <ChevronRight size={16} />
             </button>
           </form>
         </div>
@@ -234,13 +226,13 @@ Return strictly valid JSON in this format:
     );
   }
 
-  // 2. Active Lesson Screen (Theory + Sandbox + AI verification)
+  // 2. Interactive Lesson Studio (Split Screen: Theory + Code Editor + Terminal)
   if (activeLesson) {
     return (
       <div className="lesson-page">
         <header className="topbar">
           <button className="textBtn" onClick={() => setActiveLesson(null)} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-            <ArrowLeft size={16} /> Back to Track
+            <ArrowLeft size={16} /> Back to Learning Track
           </button>
           <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
             <span className="xpPill"><Zap size={14} /> +100 XP</span>
@@ -248,7 +240,6 @@ Return strictly valid JSON in this format:
         </header>
 
         <div className="lesson-layout">
-          {/* Left Column: Lesson Content */}
           <div className="lesson-content-panel">
             <span className="eyebrow"><BookOpen size={14} /> LESSON {activeLesson.id}</span>
             <h2>{activeLesson.title}</h2>
@@ -257,7 +248,7 @@ Return strictly valid JSON in this format:
             <div className="concept" style={{ margin: "20px 0" }}>
               <Lightbulb className="conceptIcon" />
               <div>
-                <b>Visual Mental Model</b>
+                <b>Mental Model</b>
                 <p>{activeLesson.analogy}</p>
               </div>
             </div>
@@ -269,17 +260,16 @@ Return strictly valid JSON in this format:
 
             {aiFeedback && (
               <div style={{ marginTop: "18px", padding: "14px", borderRadius: "10px", background: "rgba(139,124,255,0.1)", border: "1px solid var(--accent)", fontSize: "13px", lineHeight: "1.6" }}>
-                <b>Teacher's Feedback:</b>
+                <b>Teacher Evaluation:</b>
                 <p style={{ margin: "6px 0 0" }}>{aiFeedback}</p>
               </div>
             )}
           </div>
 
-          {/* Right Column: Code Practice Sandbox */}
           <div className="lesson-editor-panel">
             <div className="editorHead">
               <span>Interactive Python Editor</span>
-              <button className="runBtn" onClick={() => runPythonCode(userCode)}>
+              <button className="runBtn" onClick={runPythonCode}>
                 <Play size={13} /> Run Code
               </button>
             </div>
@@ -293,11 +283,11 @@ Return strictly valid JSON in this format:
 
             <div className="terminal-box">
               <span style={{ fontSize: "11px", color: "var(--muted)", display: "block", marginBottom: "4px" }}>Terminal Output:</span>
-              <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{codeOutput || "Run your code to see output here."}</pre>
+              <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{codeOutput || "Run code to verify output..."}</pre>
             </div>
 
-            <button className="primary full" style={{ marginTop: "12px" }} onClick={verifyCodeWithAI} disabled={isVerifying}>
-              <Sparkles size={16} /> {isVerifying ? "Evaluating..." : "Submit Task to AI Teacher"}
+            <button className="primary full" style={{ marginTop: "12px" }} onClick={verifyWithAI} disabled={isVerifying}>
+              <Sparkles size={16} /> {isVerifying ? "Evaluating..." : "Submit to AI Teacher"}
             </button>
           </div>
         </div>
@@ -305,10 +295,12 @@ Return strictly valid JSON in this format:
     );
   }
 
-  // 3. Main Dashboard & Progressive Roadmap Screen
+  // 3. Learning Roadmap Dashboard
+  const completedCount = profile.completedLessons.length;
+  const progressPercent = Math.round((completedCount / currentLessons.length) * 100);
+
   return (
     <div className="app-container">
-      {/* Top Header */}
       <header className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div className="brandMark"><Code2 size={18} /></div>
@@ -318,46 +310,43 @@ Return strictly valid JSON in this format:
         <div style={{ marginLeft: "auto", display: "flex", gap: "12px", alignItems: "center" }}>
           <div className="streak"><Flame size={15} /> {profile.streak} Day Streak</div>
           <div className="xpPill"><Zap size={14} /> {profile.xp} XP</div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <input
-              type="password"
-              placeholder="Gemini API Key"
-              value={geminiKey}
-              onChange={(e) => {
-                setGeminiKey(e.target.value);
-                localStorage.setItem("gemini_api_key", e.target.value.trim());
-              }}
-              style={{
-                width: "120px",
-                background: "var(--panel2)",
-                border: "1px solid var(--line)",
-                padding: "6px 8px",
-                borderRadius: "8px",
-                color: "#fff",
-                fontSize: "11px"
-              }}
-            />
-          </div>
+          <input
+            type="password"
+            placeholder="Paste Gemini API Key"
+            value={geminiKey}
+            onChange={(e) => {
+              setGeminiKey(e.target.value);
+              localStorage.setItem("gemini_api_key", e.target.value.trim());
+            }}
+            style={{
+              width: "140px",
+              background: "var(--panel2)",
+              border: "1px solid var(--line)",
+              padding: "6px 10px",
+              borderRadius: "8px",
+              color: "#fff",
+              fontSize: "11px"
+            }}
+          />
         </div>
       </header>
 
-      {/* Profile Bar */}
       <div className="content">
         <div className="profile-banner">
-          <div className="avatar" style={{ width: "48px", height: "48px", fontSize: "16px" }}>
+          <div className="avatar" style={{ width: "48px", height: "48px", fontSize: "18px" }}>
             {profile.name[0]?.toUpperCase()}
           </div>
           <div>
-            <h2 style={{ margin: "0 0 4px" }}>Welcome back, {profile.name}!</h2>
+            <h2 style={{ margin: "0 0 4px" }}>Welcome, {profile.name}!</h2>
             <p style={{ color: "var(--muted)", margin: 0, fontSize: "13px" }}>
-              Track: <b>{profile.language} Fundamentals</b> · Level: {profile.level}
+              Track: <b>{profile.language} Course</b> · Progress: {progressPercent}%
             </p>
           </div>
           <button
             className="secondary"
             style={{ marginLeft: "auto" }}
             onClick={() => {
-              if (confirm("Reset profile and progress?")) {
+              if (confirm("Reset profile and all progress?")) {
                 localStorage.clear();
                 location.reload();
               }
@@ -367,21 +356,20 @@ Return strictly valid JSON in this format:
           </button>
         </div>
 
-        {/* Roadmap Overview */}
         <div className="sectionHead" style={{ marginTop: "32px" }}>
           <div>
-            <span className="eyebrow"><Layers size={14} /> LEARNING PATH</span>
-            <h2>Step-by-Step Curriculum</h2>
+            <span className="eyebrow"><Layers size={14} /> CURRICULUM ROADMAP</span>
+            <h2>Python Mastery Path</h2>
           </div>
           <span style={{ color: "var(--muted)", fontSize: "13px" }}>
-            {profile.completedLessons.length} of {lessonsList.length} Completed
+            {completedCount} of {currentLessons.length} Modules Finished
           </span>
         </div>
 
         <div className="roadmap-grid">
-          {lessonsList.map((lesson, idx) => {
+          {currentLessons.map((lesson, idx) => {
             const isCompleted = profile.completedLessons.includes(lesson.id);
-            const isLocked = idx > 0 && !profile.completedLessons.includes(lessonsList[idx - 1].id);
+            const isLocked = idx > 0 && !profile.completedLessons.includes(currentLessons[idx - 1].id);
 
             return (
               <div
@@ -404,7 +392,7 @@ Return strictly valid JSON in this format:
                     {lesson.summary}
                   </p>
                 </div>
-                <button className="primary" style={{ padding: "8px 12px", fontSize: "12px" }} disabled={isLocked}>
+                <button className="primary" style={{ padding: "8px 14px", fontSize: "12px" }} disabled={isLocked}>
                   {isCompleted ? "Review" : "Start"} <ChevronRight size={14} />
                 </button>
               </div>

@@ -1,10 +1,10 @@
-/* --- Academy & Profile Styling --- */
+/* --- Academy Profile & Roadmap --- */
 .onboard-screen {
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 20px;
-  background: radial-gradient(circle at 50% 20%, rgba(139, 124, 255, 0.15), transparent 40%), #070a12;
+  background: radial-gradient(circle at 50% 20%, rgba(139, 124, 255, 0.15), transparent 45%), #070a12;
 }
 
 .onboard-card {
@@ -79,7 +79,7 @@
 }
 
 .roadmap-card.completed {
-  border-color: rgba(74, 222, 128, 0.3);
+  border-color: rgba(74, 222, 128, 0.35);
 }
 
 .step-badge {
@@ -94,7 +94,7 @@
   border: 1px solid var(--line);
 }
 
-/* --- Lesson Practice Layout --- */
+/* --- Interactive Practice Studio --- */
 .lesson-page {
   min-height: 100vh;
   display: flex;
