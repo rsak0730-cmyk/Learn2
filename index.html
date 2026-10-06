@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#070a12" />
   <meta
     name="description"
-    content="CodeVerse — Learn programming through interactive lessons, coding challenges, visual labs and projects."
+    content="CodeVerse — Interactive programming learning engine with visual state, multi-language execution, and custom AI tutoring."
   />
-  <title>CodeVerse</title>
+  <title>CodeVerse — Interactive Learning Engine</title>
 
   <style>
     html,
@@ -40,8 +40,10 @@
       position: fixed;
       inset: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 16px;
       background: #070a12;
       z-index: 999999;
       transition: opacity 0.3s ease;
@@ -53,7 +55,7 @@
       border: 3px solid #20293a;
       border-top-color: #8b7cff;
       border-radius: 50%;
-      animation: spin .8s linear infinite;
+      animation: spin 0.8s linear infinite;
     }
 
     @keyframes spin {
@@ -61,12 +63,22 @@
         transform: rotate(360deg);
       }
     }
+
+    .loading-text {
+      color: #8994aa;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+    }
   </style>
+
+  <!-- Pyodide for in-browser Python execution without servers -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js" defer></script>
 </head>
 
 <body>
   <div id="loading">
     <div class="loader"></div>
+    <span class="loading-text">Loading CodeVerse...</span>
   </div>
 
   <div id="root"></div>
@@ -85,6 +97,6 @@
     });
   </script>
 
-  <script type="module" src="/src/main.jsx"></script>
+  <script type="module" src="./src/main.jsx"></script>
 </body>
 </html>

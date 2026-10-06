@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Suspense, lazy } from "react";
+import React, { useEffect, useState, Suspense, lazy, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BookOpen,
@@ -11,6 +11,8 @@ import {
   Flame,
   FolderKanban,
   Github,
+  GitBranch,
+  GraduationCap,
   Home as HomeIcon,
   Key,
   Lightbulb,
@@ -229,7 +231,7 @@ const projects = [
 
 const languages = {
   javascript: { name: "JavaScript", ext: "js" },
-  python: { name: "Python", ext: "py" },
+  python: { name: "Python (In-Browser)", ext: "py" },
   html: { name: "HTML", ext: "html" },
   css: { name: "CSS", ext: "css" },
   cpp: { name: "C++", ext: "cpp" },
@@ -237,8 +239,8 @@ const languages = {
 };
 
 const defaults = {
-  javascript: `console.log("Hello, CodeVerse!");`,
-  python: `name = "CodeVerse"\nprint(f"Hello, {name}!")`,
+  javascript: `console.log("Hello, CodeVerse!");\nfor (let i = 1; i <= 3; i++) {\n  console.log("Step", i);\n}`,
+  python: `name = "CodeVerse"\nprint(f"Hello, {name} from in-browser Python!")\n\nfor i in range(3):\n    print(f"Iteration {i}")`,
   html: `<main class="card">\n  <h1>Hello CodeVerse</h1>\n  <p>Edit the HTML and see it live.</p>\n</main>`,
   css: `.card {\n  font-family: system-ui;\n  padding: 32px;\n  border-radius: 24px;\n  background: #151b2b;\n  color: white;\n}`,
   cpp: `#include <iostream>\n\nint main() {\n  std::cout << "Hello, CodeVerse!";\n  return 0;\n}`,
@@ -268,7 +270,6 @@ function App() {
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
 
-  // Gemini API Key & Model selection
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem("gemini_api_key") || "");
   const [selectedModel, setSelectedModel] = useState(
     localStorage.getItem("gemini_selected_model") || "gemini-2.5-flash"
@@ -296,7 +297,7 @@ function App() {
     const loader = document.getElementById("loading");
     if (loader) {
       loader.style.opacity = "0";
-      setTimeout(() => loader.remove(), 200);
+      setTimeout(() => loader.remove(), 250);
     }
   }, []);
 
@@ -338,6 +339,7 @@ function App() {
   const nav = [
     ["home", "Home", HomeIcon],
     ["learn", "Learn", BookOpen],
+    ["aitutor", "AI Dynamic Track", GraduationCap],
     ["playground", "Playground", Terminal],
     ["visual", "Visual Lab", Brain],
     ["projects", "Projects", FolderKanban],
@@ -382,6 +384,7 @@ function App() {
               <Icon size={18} />
               <span>{label}</span>
               {id === "challenges" && <em>3</em>}
+              {id === "aitutor" && <span style={{ marginLeft: "auto", fontSize: "10px", color: "#a89dff" }}>AI</span>}
             </button>
           ))}
         </nav>
@@ -448,7 +451,22 @@ function App() {
             search={search}
           />
         )}
-        {page === "playground" && <Playground />}
+        {page === "aitutor" && (
+          <CustomAiTutor
+            geminiKey={geminiKey}
+            selectedModel={selectedModel}
+            addXp={(amount) => setXp((v) => v + amount)}
+            toast={setToast}
+            onOpenSettings={() => setPage("settings")}
+          />
+        )}
+        {page === "playground" && (
+          <Playground
+            geminiKey={geminiKey}
+            selectedModel={selectedModel}
+            toast={setToast}
+          />
+        )}
         {page === "visual" && <VisualLab />}
         {page === "projects" && (
           <Projects saved={savedProjects} setSaved={setSavedProjects} toast={setToast} />
@@ -477,6 +495,7 @@ function App() {
               localStorage.removeItem(STORAGE);
               localStorage.removeItem("gemini_api_key");
               localStorage.removeItem("gemini_selected_model");
+              localStorage.removeItem("codeverse_ai_course");
               location.reload();
             }}
           />
@@ -506,6 +525,319 @@ function PageTitle({ eyebrow, title, desc, children }) {
   );
 }
 
+/* =========================================================
+   CUSTOM AI TUTOR (ANY LANGUAGE DYNAMIC TRACK)
+========================================================= */
+function CustomAiTutor({ geminiKey, selectedModel, addXp, toast, onOpenSettings }) {
+  const [language, setLanguage] = useState("Python");
+  const [level, setLevel] = useState("Beginner");
+  const [syllabus, setSyllabus] = useState([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [userCode, setUserCode] = useState("");
+  const [feedback, setFeedback] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const savedCourse = JSON.parse(localStorage.getItem("codeverse_ai_course"));
+      if (savedCourse && savedCourse.syllabus && savedCourse.syllabus.length > 0) {
+        setLanguage(savedCourse.language);
+        setLevel(savedCourse.level || "Beginner");
+        setSyllabus(savedCourse.syllabus);
+        setCurrentStepIndex(savedCourse.currentStepIndex || 0);
+        setUserCode(savedCourse.syllabus[savedCourse.currentStepIndex || 0]?.starterCode || "");
+      }
+    } catch (e) {
+      console.error("Failed to load saved AI track", e);
+    }
+  }, []);
+
+  const saveCourseState = (newSyllabus, newIndex) => {
+    localStorage.setItem(
+      "codeverse_ai_course",
+      JSON.stringify({
+        language,
+        level,
+        syllabus: newSyllabus,
+        currentStepIndex: newIndex
+      })
+    );
+  };
+
+  const generateCourse = async () => {
+    if (!geminiKey) {
+      toast("Please connect your Gemini API key in Settings first!");
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback("Building your custom structured curriculum with Gemini...");
+
+    const prompt = `You are a curriculum designer for programming education.
+Create a high-impact, 6-step progressive lesson syllabus for learning "${language}" at "${level}" level.
+Return ONLY valid JSON matching this exact structure with no extra markdown text:
+[
+  {
+    "id": 1,
+    "title": "Lesson title",
+    "concept": "2-3 clear sentences explaining the underlying concept.",
+    "analogy": "A simple, memorable real-life analogy.",
+    "starterCode": "Runnable starter snippet for the student to practice",
+    "task": "A specific micro-exercise the student must write code for",
+    "completed": false
+  }
+]`;
+
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiKey}`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+
+      const data = await res.json();
+      let raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+      raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
+
+      const parsed = JSON.parse(raw);
+      setSyllabus(parsed);
+      setCurrentStepIndex(0);
+      setUserCode(parsed[0]?.starterCode || "");
+      saveCourseState(parsed, 0);
+      setFeedback("Curriculum ready! Complete Step 1 below.");
+    } catch (err) {
+      setFeedback("Failed to build track. Please verify your Gemini API key.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyStep = async () => {
+    if (!geminiKey) {
+      toast("Please connect your Gemini API key in Settings!");
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback("Evaluating your solution...");
+
+    const activeStep = syllabus[currentStepIndex];
+    const prompt = `You are an encouraging coding teacher evaluating a student's answer for ${language}.
+Lesson task: "${activeStep.task}"
+Student's code:
+\`\`\`
+${userCode}
+\`\`\`
+
+Evaluate if the code correctly solves the task.
+Return ONLY valid JSON in this exact structure:
+{
+  "passed": true,
+  "message": "2-3 sentences of constructive feedback, encouragement, or explanation of what needs fixing."
+}`;
+
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiKey}`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+
+      const data = await res.json();
+      let raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
+      const result = JSON.parse(raw);
+
+      setFeedback(result.message);
+
+      if (result.passed) {
+        addXp(75);
+        toast("Step passed! +75 XP");
+
+        const updated = [...syllabus];
+        updated[currentStepIndex].completed = true;
+
+        const nextIndex = Math.min(currentStepIndex + 1, syllabus.length - 1);
+        setSyllabus(updated);
+        setCurrentStepIndex(nextIndex);
+        setUserCode(updated[nextIndex]?.starterCode || "");
+        saveCourseState(updated, nextIndex);
+      }
+    } catch (err) {
+      setFeedback("Could not verify step. Check network connection or API key.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const completedCount = syllabus.filter((s) => s.completed).length;
+  const progressPercent = syllabus.length ? Math.round((completedCount / syllabus.length) * 100) : 0;
+  const activeLesson = syllabus[currentStepIndex];
+
+  return (
+    <div className="content">
+      <PageTitle
+        eyebrow="AI DYNAMIC CURRICULUM"
+        title="Master Any Language Step-by-Step"
+        desc="Choose any programming language. The AI generates a customized, progressive track with practical milestones saved automatically to your device."
+      />
+
+      {!geminiKey && (
+        <div style={{ padding: "14px", background: "rgba(251,113,133,0.1)", border: "1px solid var(--danger)", borderRadius: "12px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>A Google Gemini API Key is required to generate dynamic tracks and verify exercises.</span>
+          <button className="primary" onClick={onOpenSettings}><Key size={14} /> Connect Key</button>
+        </div>
+      )}
+
+      {syllabus.length === 0 ? (
+        <div className="panel">
+          <h2>Create a New AI Track</h2>
+          <p className="muted">Type any language you want to study today (e.g., Python, C++, Go, Rust, TypeScript, Java).</p>
+
+          <div style={{ display: "flex", gap: "10px", marginTop: "16px", flexWrap: "wrap" }}>
+            <input
+              type="text"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              placeholder="e.g. Python, Rust, SQL"
+              style={{ padding: "11px 14px", background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: "10px", color: "var(--text)", minWidth: "220px" }}
+            />
+
+            <select
+              value={level}
+              onChange={(e) => setLevel(e.target.value)}
+              style={{ padding: "11px 14px", background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: "10px", color: "var(--text)" }}
+            >
+              <option>Beginner</option>
+              <option>Intermediate</option>
+              <option>Advanced</option>
+            </select>
+
+            <button className="primary" onClick={generateCourse} disabled={isLoading}>
+              <Sparkles size={16} /> Generate Track
+            </button>
+          </div>
+
+          {feedback && <p style={{ marginTop: "14px", color: "var(--muted)" }}>{feedback}</p>}
+        </div>
+      ) : (
+        <div className="learnLayout">
+          {/* Left Step Roadmap */}
+          <div className="lessonList">
+            <div style={{ padding: "14px", background: "var(--panel)", border: "1px solid var(--line)", borderRadius: "14px", marginBottom: "10px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "8px" }}>
+                <b>{language} ({level})</b>
+                <span style={{ color: "#a89dff" }}>{progressPercent}% Done</span>
+              </div>
+              <div className="progress">
+                <span style={{ width: `${progressPercent}%` }} />
+              </div>
+            </div>
+
+            {syllabus.map((step, idx) => (
+              <button
+                key={step.id}
+                className={`lessonCard ${idx === currentStepIndex ? "selected" : ""}`}
+                onClick={() => {
+                  setCurrentStepIndex(idx);
+                  setUserCode(step.starterCode || "");
+                }}
+              >
+                <div className="lessonIcon">
+                  {step.completed ? <Check size={16} /> : <span>{idx + 1}</span>}
+                </div>
+                <div className="lessonInfo">
+                  <b>{step.title}</b>
+                  <small>{step.completed ? "Completed" : "In Progress"}</small>
+                </div>
+              </button>
+            ))}
+
+            <button
+              className="secondary danger"
+              style={{ marginTop: "10px" }}
+              onClick={() => {
+                localStorage.removeItem("codeverse_ai_course");
+                setSyllabus([]);
+              }}
+            >
+              <RotateCcw size={15} /> Reset / Pick New Language
+            </button>
+          </div>
+
+          {/* Right Active Step Work Area */}
+          {activeLesson && (
+            <section className="panel lessonDetail">
+              <div className="detailTop">
+                <div>
+                  <span className="eyebrow">STEP {currentStepIndex + 1} OF {syllabus.length}</span>
+                  <h2>{activeLesson.title}</h2>
+                  <p className="muted">{activeLesson.concept}</p>
+                </div>
+                {activeLesson.completed && (
+                  <span className="done"><Check size={13} /> Complete</span>
+                )}
+              </div>
+
+              <div className="concept">
+                <Lightbulb className="conceptIcon" />
+                <div>
+                  <b>Mental Analogy</b>
+                  <p>{activeLesson.analogy}</p>
+                </div>
+              </div>
+
+              <div style={{ margin: "16px 0", fontSize: "13px" }}>
+                <b>Exercise Task:</b>
+                <p style={{ color: "var(--muted)", margin: "4px 0" }}>{activeLesson.task}</p>
+              </div>
+
+              <div className="lessonCode" style={{ marginBottom: "14px" }}>
+                <div className="miniBar">
+                  <span>{language} Exercise Workspace</span>
+                </div>
+                <textarea
+                  value={userCode}
+                  onChange={(e) => setUserCode(e.target.value)}
+                  rows={8}
+                  style={{
+                    width: "100%",
+                    background: "#080c15",
+                    border: "none",
+                    color: "#eef2ff",
+                    fontFamily: "monospace",
+                    fontSize: "14px",
+                    padding: "16px",
+                    boxSizing: "border-box",
+                    outline: "none"
+                  }}
+                />
+              </div>
+
+              <div className="detailActions">
+                <button className="primary" onClick={verifyStep} disabled={isLoading}>
+                  <Check size={16} /> Submit & Check with AI
+                </button>
+              </div>
+
+              {feedback && (
+                <div style={{ marginTop: "16px", padding: "14px", background: "var(--panel2)", borderRadius: "10px", fontSize: "13px", lineHeight: "1.6", border: "1px solid var(--line)" }}>
+                  {feedback}
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================
+   HOME PAGE (WITH EMBEDDED AI TEACHER)
+========================================================= */
 function Home({
   go,
   xp,
@@ -537,7 +869,7 @@ function Home({
     setIsAiLoading(true);
     setAiResponse(`Thinking with ${selectedModel}...`);
 
-    const systemPrompt = `You are a supportive, concise coding tutor inside CodeVerse.
+    const systemPrompt = `You are a supportive, clear coding tutor inside CodeVerse.
 Context:
 - Current lesson: ${next.title} (${next.lang})
 - Lesson code:
@@ -545,22 +877,19 @@ ${next.code}
 
 Student question: ${question}
 
-Provide a clear, practical explanation or hint in 3-5 sentences.`;
+Provide a practical explanation or hint in 3-5 sentences.`;
 
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiKey}`;
-
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }]
-        })
+        body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }] })
       });
 
       const data = await res.json();
       if (data.error) {
-        setAiResponse(`Gemini Error: ${data.error.message || "Invalid API Key or model error"}`);
+        setAiResponse(`Gemini Error: ${data.error.message || "Invalid API Key"}`);
       } else {
         const reply =
           data?.candidates?.[0]?.content?.parts?.[0]?.text ||
@@ -587,8 +916,8 @@ Provide a clear, practical explanation or hint in 3-5 sentences.`;
             <span>See it happen.</span>
           </h1>
           <p>
-            Learn programming through visual explanations, interactive code, practical challenges,
-            projects and an AI-powered learning workflow.
+            Learn programming through visual explanations, in-browser code execution, practical challenges,
+            and an adaptive Gemini AI tutor.
           </p>
 
           <div className="heroBtns">
@@ -718,14 +1047,14 @@ Provide a clear, practical explanation or hint in 3-5 sentences.`;
 
           <h2>What should we build today?</h2>
           <p className="muted">
-            Ask for an explanation, debugging help, or a visual breakdown of a concept.
+            Ask for an explanation, debugging help, or an algorithmic breakdown.
           </p>
 
           <div className="aiPrompt">
             <input
               type="text"
               value={aiPrompt}
-              placeholder="Ask anything about this code..."
+              placeholder="Ask anything about this lesson..."
               onChange={(e) => setAiPrompt(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAskGemini()}
               style={{
@@ -862,6 +1191,9 @@ Provide a clear, practical explanation or hint in 3-5 sentences.`;
   );
 }
 
+/* =========================================================
+   LEARN PAGE
+========================================================= */
 function Learn({ completed, selected, setSelected, finish, search }) {
   const filtered = lessons.filter((lesson) =>
     `${lesson.title} ${lesson.desc} ${lesson.level}`.toLowerCase().includes(search.toLowerCase())
@@ -937,19 +1269,28 @@ function Learn({ completed, selected, setSelected, finish, search }) {
   );
 }
 
-function Playground() {
+/* =========================================================
+   PLAYGROUND (WITH IN-BROWSER PYTHON VIA PYODIDE & AI REVIEW)
+========================================================= */
+function Playground({ geminiKey, selectedModel, toast }) {
   const [language, setLanguage] = useState("javascript");
   const [code, setCode] = useState(defaults.javascript);
-  const [output, setOutput] = useState("Click Run to execute your JavaScript.");
+  const [output, setOutput] = useState("Click Run to execute your code.");
   const [preview, setPreview] = useState(false);
+  const [pyodideInstance, setPyodideInstance] = useState(null);
+  const [isPyLoading, setIsPyLoading] = useState(false);
+  const [aiReview, setAiReview] = useState("");
+  const [isReviewing, setIsReviewing] = useState(false);
 
   const changeLanguage = (val) => {
     setLanguage(val);
     setCode(defaults[val] || "");
     setOutput("Ready.");
+    setAiReview("");
   };
 
-  const run = () => {
+  const run = async () => {
+    // 1. In-Browser JavaScript Execution
     if (language === "javascript") {
       const logs = [];
       try {
@@ -966,6 +1307,39 @@ function Playground() {
       return;
     }
 
+    // 2. In-Browser Python Execution via Pyodide
+    if (language === "python") {
+      setOutput("Running Python in browser via WebAssembly...");
+      try {
+        let py = pyodideInstance;
+        if (!py) {
+          if (!window.loadPyodide) {
+            setOutput("Pyodide engine is still loading from CDN. Please wait 5 seconds and run again.");
+            return;
+          }
+          setIsPyLoading(true);
+          py = await window.loadPyodide();
+          setPyodideInstance(py);
+          setIsPyLoading(false);
+        }
+
+        py.runPython(`
+import sys
+import io
+sys.stdout = io.StringIO()
+sys.stderr = io.StringIO()
+`);
+        py.runPython(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        const stderr = py.runPython("sys.stderr.getvalue()");
+        setOutput(stdout || stderr || "Python executed successfully with no output.");
+      } catch (err) {
+        setOutput(`Python Error: ${err?.message || String(err)}`);
+      }
+      return;
+    }
+
+    // 3. HTML/CSS Live Sandbox Preview
     if (language === "html" || language === "css") {
       setPreview(true);
       setOutput("Live preview updated.");
@@ -973,6 +1347,44 @@ function Playground() {
     }
 
     setOutput(`${languages[language]?.name} execution requires a backend server sandbox.`);
+  };
+
+  const handleReviewCode = async () => {
+    if (!geminiKey) {
+      toast("Please connect your Gemini API key in Settings first!");
+      return;
+    }
+
+    setIsReviewing(true);
+    setAiReview("AI Reviewer is analyzing your code...");
+
+    const prompt = `Review this ${language} code as a senior developer.
+\`\`\`${language}
+${code}
+\`\`\`
+
+Provide:
+1. Quality Score (out of 10)
+2. Big-O Time & Space Complexity estimate
+3. Readability & Potential Edge Cases
+4. One refactored senior-level improvement snippet`;
+
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiKey}`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+
+      const data = await res.json();
+      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "No review returned.";
+      setAiReview(reply);
+    } catch (err) {
+      setAiReview("Failed to get AI review. Check network or key.");
+    } finally {
+      setIsReviewing(false);
+    }
   };
 
   const previewDocument =
@@ -985,7 +1397,7 @@ function Playground() {
       <PageTitle
         eyebrow="PLAYGROUND"
         title="Code. Run. See."
-        desc="JavaScript runs directly in your browser; HTML and CSS offer live previews."
+        desc="JavaScript and Python run 100% inside your browser tab without any servers. HTML & CSS render live previews."
       />
 
       <div className="playground">
@@ -1002,13 +1414,23 @@ function Playground() {
                 </button>
               ))}
             </div>
-            <button className="runBtn" onClick={run}>
-              <Play size={13} /> Run
-            </button>
+            <div style={{ display: "flex", gap: "6px", marginRight: "8px" }}>
+              <button
+                className="secondary"
+                style={{ padding: "6px 10px", fontSize: "11px" }}
+                onClick={handleReviewCode}
+                disabled={isReviewing}
+              >
+                <Sparkles size={12} /> Review
+              </button>
+              <button className="runBtn" onClick={run} disabled={isPyLoading}>
+                <Play size={13} /> {isPyLoading ? "Loading Py..." : "Run"}
+              </button>
+            </div>
           </div>
 
           <CodeEditorWrapper
-            language={language}
+            language={language === "python" ? "python" : language}
             value={code}
             onChange={(val) => setCode(val)}
             height="470px"
@@ -1037,10 +1459,22 @@ function Playground() {
           </div>
         </section>
       </div>
+
+      {aiReview && (
+        <div className="panel" style={{ marginTop: "16px" }}>
+          <span className="eyebrow"><Sparkles size={13} /> AI CODE REVIEW</span>
+          <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: "13px", lineHeight: "1.6", color: "var(--text)", margin: "10px 0 0" }}>
+            {aiReview}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }
 
+/* =========================================================
+   VISUAL LAB (WITH STEPPING ALGORITHM VISUALIZER)
+========================================================= */
 function VisualLab() {
   const [values, setValues] = useState([34, 72, 51, 91, 18, 64, 42, 83]);
   const [target, setTarget] = useState(64);
@@ -1049,12 +1483,27 @@ function VisualLab() {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = step >= 0 ? Math.floor(step / 2) : -1;
 
+  const handleBubbleSortStep = () => {
+    const arr = [...values];
+    let swapped = false;
+    for (let i = 0; i < arr.length - 1; i++) {
+      if (arr[i] > arr[i + 1]) {
+        const tmp = arr[i];
+        arr[i] = arr[i + 1];
+        arr[i + 1] = tmp;
+        swapped = true;
+        break;
+      }
+    }
+    setValues(arr);
+  };
+
   return (
     <div className="content">
       <PageTitle
         eyebrow="VISUAL LAB"
         title="See algorithms think"
-        desc="Interactive visualizations making state visible."
+        desc="Interactive visualizations making invisible program state and sorting mechanics visible."
       />
 
       <div className="visualGrid">
@@ -1062,16 +1511,21 @@ function VisualLab() {
           <div className="panelHead">
             <div>
               <span className="eyebrow">DATA STRUCTURES</span>
-              <h2>Array playground</h2>
+              <h2>Array & Sorting Playground</h2>
             </div>
-            <button
-              className="secondary"
-              onClick={() =>
-                setValues(Array.from({ length: 8 }, () => Math.floor(Math.random() * 90) + 10))
-              }
-            >
-              <RotateCcw size={15} /> Randomize
-            </button>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button className="secondary" onClick={handleBubbleSortStep}>
+                Step Sort
+              </button>
+              <button
+                className="secondary"
+                onClick={() =>
+                  setValues(Array.from({ length: 8 }, () => Math.floor(Math.random() * 90) + 10))
+                }
+              >
+                <RotateCcw size={15} /> Randomize
+              </button>
+            </div>
           </div>
 
           <div className="bars">
@@ -1122,6 +1576,9 @@ function VisualLab() {
   );
 }
 
+/* =========================================================
+   PROJECTS
+========================================================= */
 function Projects({ saved, setSaved, toast }) {
   const [active, setActive] = useState(null);
 
@@ -1174,6 +1631,9 @@ function Projects({ saved, setSaved, toast }) {
   );
 }
 
+/* =========================================================
+   CHALLENGES
+========================================================= */
 function Challenges({ selected, setSelected, addXp, toast }) {
   const challenge = challenges.find((item) => item.id === selected) || challenges[0];
   const [code, setCode] = useState(challenge.starter);
@@ -1245,6 +1705,9 @@ function Challenges({ selected, setSelected, addXp, toast }) {
   );
 }
 
+/* =========================================================
+   DEBUG DETECTIVE
+========================================================= */
 function Debug() {
   const [step, setStep] = useState(0);
   const lines = [
@@ -1292,6 +1755,9 @@ function Debug() {
   );
 }
 
+/* =========================================================
+   CAREER MODE & GITHUB PRACTICE
+========================================================= */
 function Career() {
   const paths = [
     ["Frontend Engineer", "HTML · CSS · JS · React", "72%"],
@@ -1332,6 +1798,9 @@ function GitHubPage() {
   );
 }
 
+/* =========================================================
+   SETTINGS PAGE
+========================================================= */
 function SettingsPage({
   theme,
   setTheme,
@@ -1352,7 +1821,6 @@ function SettingsPage({
       />
 
       <div className="settingsGrid">
-        {/* Appearance Switch */}
         <div className="panel setting">
           <div>
             <Moon />
@@ -1366,14 +1834,13 @@ function SettingsPage({
           </button>
         </div>
 
-        {/* Gemini API Key Setting */}
         <div className="panel setting" style={{ flexDirection: "column", alignItems: "stretch", gap: "14px" }}>
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <Key style={{ color: "#8b7cff" }} />
             <div>
               <b>Google Gemini API Key</b>
               <p style={{ margin: "2px 0", fontSize: "11px", color: "var(--muted)" }}>
-                Paste your personal Gemini key to power the AI Teacher. Saved only on this browser.
+                Paste your personal Gemini key from Google AI Studio. Stored strictly in local browser storage.
               </p>
             </div>
           </div>
@@ -1399,12 +1866,11 @@ function SettingsPage({
           </div>
         </div>
 
-        {/* Gemini Model Selector */}
         <div className="panel setting" style={{ flexDirection: "column", alignItems: "stretch", gap: "14px" }}>
           <div>
             <b>Gemini Model Engine</b>
             <p style={{ margin: "2px 0", fontSize: "11px", color: "var(--muted)" }}>
-              Choose the active model for coding explanations and assistance.
+              Select the active model used across AI Tutoring and Code Review.
             </p>
           </div>
 
@@ -1429,13 +1895,12 @@ function SettingsPage({
           </select>
         </div>
 
-        {/* Reset Progress */}
         <div className="panel setting">
           <div>
             <RotateCcw />
             <div>
               <b>Reset local progress</b>
-              <p>Clears XP, lesson completion, projects and settings on this device.</p>
+              <p>Clears XP, courses, lesson completion, projects and settings on this device.</p>
             </div>
           </div>
           <button className="secondary danger" onClick={reset}>Reset data</button>
