@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BookOpen,
@@ -23,7 +23,12 @@ import {
 import "./styles.css";
 
 const PROFILE_KEY = "codeverse_academy_profile";
-const ACTIVE_MODEL = "gemini-2.5-flash";
+
+const AVAILABLE_MODELS = [
+  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash (Fast)" },
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro (Deep Reasoning)" },
+  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Speed)" }
+];
 
 const TRACKS = {
   Python: {
@@ -35,8 +40,8 @@ const TRACKS = {
         title: "1. Variables & Data Types",
         summary: "Understand memory boxes, strings, integers, and floats.",
         analogy: "Like labeled jars in a kitchen holding sugar or salt.",
-        starterCode: 'player_name = "Manish"\nscore = 100\nprint(f"Player: {player_name}, Score: {score}")',
-        task: 'Create a variable named `user_age` set to 17, then print it using `print(user_age)`.'
+        starterCode: 'player_name = "manish"\nscore = 100\nprint(f"player: {player_name}, score: {score}")',
+        task: 'create a variable named `user_age` set to 17, then print it using `print(user_age)`.'
       },
       {
         id: "py-2",
@@ -44,8 +49,8 @@ const TRACKS = {
         title: "2. Conditional Decisions",
         summary: "Master if, elif, and else logic gates.",
         analogy: "Like deciding whether to carry an umbrella based on rain.",
-        starterCode: 'score = 85\n\nif score >= 50:\n    print("Passed")\nelse:\n    print("Review")',
-        task: 'Write an if-statement that prints "Grade A" if score >= 80, else prints "Grade B".'
+        starterCode: 'score = 85\n\nif score >= 50:\n    print("passed")\nelse:\n    print("review")',
+        task: 'write an if-statement that prints "grade a" if score >= 80, else prints "grade b".'
       },
       {
         id: "py-3",
@@ -53,8 +58,8 @@ const TRACKS = {
         title: "3. Loops & Sequences",
         summary: "Automate repetition with for and while loops.",
         analogy: "Like running laps on an athletic field.",
-        starterCode: 'for i in range(1, 4):\n    print(f"Lap {i}")',
-        task: 'Write a loop that prints numbers from 1 to 5 using `range(1, 6)`.'
+        starterCode: 'for i in range(1, 4):\n    print(f"lap {i}")',
+        task: 'write a loop that prints numbers from 1 to 5 using `range(1, 6)`.'
       },
       {
         id: "py-4",
@@ -62,8 +67,8 @@ const TRACKS = {
         title: "4. Functions & Return Values",
         summary: "Modularize logic into reusable components.",
         analogy: "Like a recipe you can trigger on demand.",
-        starterCode: 'def greet(name):\n    return f"Hello, {name}!"\n\nprint(greet("Explorer"))',
-        task: 'Create a function `multiply(a, b)` that returns `a * b` and print `multiply(4, 5)`.'
+        starterCode: 'def greet(name):\n    return f"hello, {name}!"\n\nprint(greet("explorer"))',
+        task: 'create a function `multiply(a, b)` that returns `a * b` and print `multiply(4, 5)`.'
       }
     ]
   },
@@ -76,8 +81,8 @@ const TRACKS = {
         title: "1. Variables: let vs const",
         summary: "Store mutable and immutable values in modern JavaScript.",
         analogy: "Const is permanent ink; let is pencil with an eraser.",
-        starterCode: 'const appName = "CodeVerse";\nlet xp = 50;\nconsole.log(appName, xp);',
-        task: 'Declare a variable `let level = 1;` and log it using `console.log(level);`.'
+        starterCode: 'const appname = "codeverse";\nlet xp = 50;\nconsole.log(appname, xp);',
+        task: 'declare a variable `let level = 1;` and log it using `console.log(level);`.'
       },
       {
         id: "js-2",
@@ -86,7 +91,7 @@ const TRACKS = {
         summary: "Write concise modern functions.",
         analogy: "A shortcut macro on your keyboard.",
         starterCode: 'const add = (a, b) => a + b;\nconsole.log(add(5, 10));',
-        task: 'Create an arrow function `square = (n) => n * n` and log `square(6)`.'
+        task: 'create an arrow function `square = (n) => n * n` and log `square(6)`.'
       },
       {
         id: "js-3",
@@ -95,7 +100,7 @@ const TRACKS = {
         summary: "Transform collections declaratively without manual loops.",
         analogy: "Like a conveyor belt sorting and packaging items.",
         starterCode: 'const nums = [1, 2, 3];\nconst doubled = nums.map(n => n * 2);\nconsole.log(doubled);',
-        task: 'Use `.filter()` to keep only numbers greater than 10 from `[5, 12, 8, 20]`.'
+        task: 'use `.filter()` to keep only numbers greater than 10 from `[5, 12, 8, 20]`.'
       }
     ]
   },
@@ -108,8 +113,8 @@ const TRACKS = {
         title: "1. Syntax & Standard I/O",
         summary: "Direct memory management and standard streams.",
         analogy: "Speaking directly to the engine room without a translator.",
-        starterCode: '#include <iostream>\n\nint main() {\n    std::cout << "Hello CodeVerse!" << std::endl;\n    return 0;\n}',
-        task: 'Declare an integer `int score = 100;` and print it using `std::cout << score;`.'
+        starterCode: '#include <iostream>\n\nint main() {\n    std::cout << "hello codeverse!" << std::endl;\n    return 0;\n}',
+        task: 'declare an integer `int score = 100;` and print it using `std::cout << score;`.'
       },
       {
         id: "cpp-2",
@@ -118,7 +123,7 @@ const TRACKS = {
         summary: "Manipulate actual hardware memory addresses.",
         analogy: "Giving someone the GPS coordinates instead of copying the house.",
         starterCode: 'int val = 42;\nint* ptr = &val;\nstd::cout << *ptr;',
-        task: 'Create an integer `x = 10` and print its pointer memory address `&x`.'
+        task: 'create an integer `x = 10` and print its pointer memory address `&x`.'
       }
     ]
   },
@@ -131,8 +136,8 @@ const TRACKS = {
         title: "1. Immutability & Variables",
         summary: "Memory safety without a garbage collector.",
         analogy: "A strict contract where variables are locked by default.",
-        starterCode: 'fn main() {\n    let mut score = 10;\n    score += 5;\n    println!("Score: {}", score);\n}',
-        task: 'Declare a mutable variable `let mut xp = 0;` and print it using `println!("{}", xp);`.'
+        starterCode: 'fn main() {\n    let mut score = 10;\n    score += 5;\n    println!("score: {}", score);\n}',
+        task: 'declare a mutable variable `let mut xp = 0;` and print it using `println!("{}", xp);`.'
       }
     ]
   }
@@ -155,8 +160,12 @@ function App() {
     }
   });
 
-  const [navTab, setNavTab] = useState("curriculum"); // 'curriculum' | 'theory-lab'
+  const [navTab, setNavTab] = useState("curriculum");
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem("gemini_api_key") || "");
+  const [selectedModel, setSelectedModel] = useState(
+    localStorage.getItem("gemini_selected_model") || "gemini-2.5-flash"
+  );
+
   const [activeLesson, setActiveLesson] = useState(null);
   const [userCode, setUserCode] = useState("");
   const [terminalOutput, setTerminalOutput] = useState("");
@@ -168,8 +177,8 @@ function App() {
   const [teacherEvaluation, setTeacherEvaluation] = useState("");
   const [isEvaluating, setIsEvaluating] = useState(false);
 
-  // Theory Lab Interactive States
-  const [theoryTopic, setTheoryTopic] = useState("Recursion");
+  // Theory Lab States
+  const [theoryTopic, setTheoryTopic] = useState("recursion");
   const [theoryText, setTheoryText] = useState("");
   const [isTheoryLoading, setIsTheoryLoading] = useState(false);
 
@@ -185,9 +194,14 @@ function App() {
     }
   }, []);
 
+  const handleModelChange = (modelId) => {
+    setSelectedModel(modelId);
+    localStorage.setItem("gemini_selected_model", modelId);
+  };
+
   // In-Browser Code Runner
   const executeCode = async (codeToRun) => {
-    setTerminalOutput("Running code in-browser...");
+    setTerminalOutput("running code in-browser...");
     const currentLang = profile.selectedTrack;
 
     if (currentLang === "Python") {
@@ -195,7 +209,7 @@ function App() {
         let py = pyodide;
         if (!py) {
           if (!window.loadPyodide) {
-            setTerminalOutput("WebAssembly engine initializing... Please wait 3 seconds and retry.");
+            setTerminalOutput("webassembly engine initializing... please wait 3 seconds and retry.");
             return;
           }
           py = await window.loadPyodide();
@@ -210,9 +224,9 @@ sys.stderr = io.StringIO()
         py.runPython(codeToRun);
         const out = py.runPython("sys.stdout.getvalue()");
         const err = py.runPython("sys.stderr.getvalue()");
-        setTerminalOutput(out || err || "Program completed with 0 output.");
+        setTerminalOutput(out || err || "program completed with 0 output.");
       } catch (err) {
-        setTerminalOutput(`Runtime Error:\n${err.message || err}`);
+        setTerminalOutput(`runtime error:\n${err.message || err}`);
       }
     } else if (currentLang === "JavaScript") {
       const logs = [];
@@ -221,16 +235,16 @@ sys.stderr = io.StringIO()
         console.log = (...args) => logs.push(args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" "));
         new Function(codeToRun)();
         console.log = orig;
-        setTerminalOutput(logs.join("\n") || "Program completed with 0 output.");
+        setTerminalOutput(logs.join("\n") || "program completed with 0 output.");
       } catch (err) {
-        setTerminalOutput(`JavaScript Error:\n${err.message || err}`);
+        setTerminalOutput(`javascript error:\n${err.message || err}`);
       }
     } else {
-      setTerminalOutput(`Notice: ${currentLang} native compiler emulation is ready. (Runs client-side simulation).`);
+      setTerminalOutput(`notice: ${currentLang} native compiler emulation is active.`);
     }
   };
 
-  // Helper AI: Analyzes code, error, and task to offer progressive clues
+  // Helper AI: Generates Clues
   const askHelperAI = async () => {
     if (!geminiKey) {
       alert("Please paste your Gemini API Key in the top bar to activate Helper AI.");
@@ -250,10 +264,10 @@ Latest Terminal Output/Error:
 ${terminalOutput}
 \`\`\`
 
-Give 2 short, bulleted clues or hints. DO NOT write the full answer directly. Point out logic gaps or syntax typos so the student learns by fixing it themselves.`;
+Give 2 short, bulleted clues or hints in lowercase code format. DO NOT write the full answer directly. Point out logic gaps or syntax typos so the student learns by fixing it themselves.`;
 
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${ACTIVE_MODEL}:generateContent?key=${geminiKey.trim()}`;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiKey.trim()}`;
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -269,7 +283,7 @@ Give 2 short, bulleted clues or hints. DO NOT write the full answer directly. Po
     }
   };
 
-  // Main Teacher: Formal Verification & XP Award
+  // Main Teacher: Submits to Selected Model
   const submitToTeacher = async () => {
     if (!geminiKey) {
       alert("Please enter your Gemini API Key in the top bar.");
@@ -277,7 +291,7 @@ Give 2 short, bulleted clues or hints. DO NOT write the full answer directly. Po
     }
 
     setIsEvaluating(true);
-    setTeacherEvaluation("Teacher is evaluating your submission...");
+    setTeacherEvaluation(`Teacher (${selectedModel}) is evaluating your submission...`);
 
     const prompt = `You are the Lead Academy Instructor.
 Module: "${activeLesson.title}"
@@ -295,7 +309,7 @@ Return ONLY valid JSON matching this structure:
 }`;
 
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${ACTIVE_MODEL}:generateContent?key=${geminiKey.trim()}`;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiKey.trim()}`;
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -324,7 +338,7 @@ Return ONLY valid JSON matching this structure:
     }
   };
 
-  // Generate Theory Lesson with AI Teacher
+  // Request Theory with Selected Model
   const requestTheoryLecture = async (topic) => {
     if (!geminiKey) {
       alert("Enter Gemini API Key in the header to generate live theory lectures.");
@@ -332,9 +346,9 @@ Return ONLY valid JSON matching this structure:
     }
 
     setIsTheoryLoading(true);
-    setTheoryText("AI Teacher is preparing a lesson lecture...");
+    setTheoryText(`AI Teacher (${selectedModel}) is preparing a lecture...`);
 
-    const prompt = `You are a computer science professor explaining the concept of "${topic}" in ${profile.selectedTrack}.
+    const prompt = `You are a computer science professor explaining "${topic}" in ${profile.selectedTrack}.
 Structure your explanation into:
 1. The Core Concept (Plain English, 2-3 sentences)
 2. A Real-World Metaphor / Analogy
@@ -342,7 +356,7 @@ Structure your explanation into:
 4. A 1-sentence prompt for the student to practice in the terminal.`;
 
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${ACTIVE_MODEL}:generateContent?key=${geminiKey.trim()}`;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiKey.trim()}`;
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -362,7 +376,7 @@ Structure your explanation into:
   const currentLevels = currentTrackData.levels;
   const studentLevel = Math.floor(profile.xp / 250) + 1;
 
-  // Onboarding Screen if profile is missing
+  // Onboarding Screen
   if (!profile.name) {
     return (
       <div className="onboard-screen">
@@ -391,6 +405,8 @@ Structure your explanation into:
               placeholder="e.g. Manish Kumar"
               required
               className="styled-input"
+              autoCapitalize="words"
+              autoCorrect="off"
             />
 
             <label className="input-label" style={{ marginTop: "14px" }}>Select Starting Language</label>
@@ -409,7 +425,7 @@ Structure your explanation into:
     );
   }
 
-  // Active Lesson Split-Screen Studio
+  // Split-Screen Practice Studio
   if (activeLesson) {
     return (
       <div className="lesson-page">
@@ -417,13 +433,22 @@ Structure your explanation into:
           <button className="textBtn" onClick={() => setActiveLesson(null)} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
             <ArrowLeft size={16} /> Exit Studio
           </button>
+
           <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
-            <span className="xpPill"><Zap size={14} /> +150 XP Reward</span>
+            <select
+              value={selectedModel}
+              onChange={(e) => handleModelChange(e.target.value)}
+              className="model-select"
+            >
+              {AVAILABLE_MODELS.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+            <span className="xpPill"><Zap size={14} /> +150 XP</span>
           </div>
         </header>
 
         <div className="studio-container">
-          {/* Left Panel: Lesson Theory & Missions */}
           <div className="studio-col left-panel">
             <span className="eyebrow"><BookOpen size={14} /> {activeLesson.tier.toUpperCase()} · MODULE</span>
             <h2>{activeLesson.title}</h2>
@@ -442,7 +467,6 @@ Structure your explanation into:
               <p style={{ margin: "6px 0 0", fontSize: "13px", lineHeight: "1.6" }}>{activeLesson.task}</p>
             </div>
 
-            {/* Helper AI Drawer */}
             <div className="helper-drawer">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700, fontSize: "13px" }}>
@@ -477,10 +501,9 @@ Structure your explanation into:
             )}
           </div>
 
-          {/* Right Panel: Code Sandbox & Terminal */}
           <div className="studio-col right-panel">
             <div className="editorHead">
-              <span>{profile.selectedTrack} Code Editor</span>
+              <span>{profile.selectedTrack} Code Editor (Small Letters)</span>
               <button className="runBtn" onClick={() => executeCode(userCode)}>
                 <Play size={13} /> Run in Terminal
               </button>
@@ -491,6 +514,10 @@ Structure your explanation into:
               value={userCode}
               onChange={(e) => setUserCode(e.target.value)}
               spellCheck="false"
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="off"
+              data-gramm="false"
             />
 
             <div className="terminal-box">
@@ -511,17 +538,15 @@ Structure your explanation into:
     );
   }
 
-  // Dashboard & Navigation Shell
+  // Dashboard & Roadmap
   return (
     <div className="app-container">
-      {/* Top Navbar */}
       <header className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div className="brandMark"><Code2 size={18} /></div>
           <b>CodeVerse Academy</b>
         </div>
 
-        {/* Tab Switcher */}
         <div className="nav-tabs-center">
           <button
             className={`tab-btn ${navTab === "curriculum" ? "active" : ""}`}
@@ -540,6 +565,18 @@ Structure your explanation into:
         <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
           <div className="streak"><Flame size={15} /> {profile.streak} Day</div>
           <div className="xpPill"><Zap size={14} /> {profile.xp} XP (Lvl {studentLevel})</div>
+
+          <select
+            value={selectedModel}
+            onChange={(e) => handleModelChange(e.target.value)}
+            className="model-select"
+            title="Active Gemini Model Engine"
+          >
+            {AVAILABLE_MODELS.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+
           <input
             type="password"
             placeholder="Gemini API Key"
@@ -548,8 +585,11 @@ Structure your explanation into:
               setGeminiKey(e.target.value);
               localStorage.setItem("gemini_api_key", e.target.value.trim());
             }}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
             style={{
-              width: "130px",
+              width: "120px",
               background: "var(--panel2)",
               border: "1px solid var(--line)",
               padding: "6px 10px",
@@ -562,7 +602,6 @@ Structure your explanation into:
       </header>
 
       <div className="content">
-        {/* Profile Card */}
         <div className="profile-banner">
           <div className="avatar" style={{ width: "48px", height: "48px", fontSize: "18px" }}>
             {profile.name[0]?.toUpperCase()}
@@ -596,7 +635,6 @@ Structure your explanation into:
           </button>
         </div>
 
-        {/* TAB 1: CURRICULUM ROADMAP */}
         {navTab === "curriculum" && (
           <div>
             <div className="sectionHead" style={{ marginTop: "32px" }}>
@@ -649,7 +687,6 @@ Structure your explanation into:
           </div>
         )}
 
-        {/* TAB 2: THEORY & TERMINAL LAB */}
         {navTab === "theory-lab" && (
           <div style={{ marginTop: "32px" }}>
             <div className="sectionHead">
@@ -660,7 +697,6 @@ Structure your explanation into:
             </div>
 
             <div className="theory-container">
-              {/* Theory Lecture Panel */}
               <div className="panel" style={{ flex: 1 }}>
                 <h3>Ask AI Teacher for a Concept Breakdown</h3>
                 <div style={{ display: "flex", gap: "10px", margin: "14px 0" }}>
@@ -668,8 +704,11 @@ Structure your explanation into:
                     type="text"
                     value={theoryTopic}
                     onChange={(e) => setTheoryTopic(e.target.value)}
-                    placeholder="e.g. Recursion, Pointers, Binary Trees"
+                    placeholder="e.g. recursion, pointers, binary trees"
                     className="styled-input"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
                     style={{ flex: 1 }}
                   />
                   <button className="primary" onClick={() => requestTheoryLecture(theoryTopic)} disabled={isTheoryLoading}>
@@ -690,11 +729,10 @@ Structure your explanation into:
                 )}
               </div>
 
-              {/* Live Terminal Sandbox */}
               <div className="panel" style={{ flex: 1 }}>
                 <div className="editorHead">
                   <span>Live Practice Terminal ({profile.selectedTrack})</span>
-                  <button className="runBtn" onClick={() => executeCode(userCode || 'print("Hello from terminal!")')}>
+                  <button className="runBtn" onClick={() => executeCode(userCode || 'print("hello from terminal!")')}>
                     <Play size={13} /> Run
                   </button>
                 </div>
@@ -702,9 +740,13 @@ Structure your explanation into:
                 <textarea
                   className="code-textarea"
                   value={userCode}
-                  placeholder={`Write ${profile.selectedTrack} code here to experiment with theory...`}
+                  placeholder={`write ${profile.selectedTrack} code here to experiment with theory...`}
                   onChange={(e) => setUserCode(e.target.value)}
                   style={{ minHeight: "180px" }}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  autoComplete="off"
+                  spellCheck="false"
                 />
 
                 <div className="terminal-box">
