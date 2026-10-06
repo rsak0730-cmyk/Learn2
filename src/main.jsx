@@ -18,44 +18,43 @@ import {
 import "./styles.css";
 
 const PROFILE_KEY = "codeverse_user_profile";
-const ACTIVE_MODEL = "gemini-2.5-flash"; // Working production endpoint
+// Active working production model (replaces deprecated 1.5 endpoint)
+const WORKING_MODEL = "gemini-2.5-flash";
 
-const CURRICULUM = {
-  Python: [
-    {
-      id: 1,
-      title: "Variables & Data Types",
-      summary: "Understand how computers remember information using labeled variables.",
-      analogy: "Like labeled kitchen jars: a jar labeled 'sugar' holds sugar, a jar labeled 'score' holds 100.",
-      starterCode: 'player_name = "Manish"\nscore = 100\nprint(f"Player: {player_name}, Score: {score}")',
-      task: 'Create a variable named `user_age` set to your age (a number), then write: `print(user_age)`.'
-    },
-    {
-      id: 2,
-      title: "Conditions & Smart Decisions",
-      summary: "Teach your program to choose different paths using if and else logic.",
-      analogy: "Like an umbrella check: if it rains, bring an umbrella; otherwise, wear sunglasses.",
-      starterCode: 'marks = 85\n\nif marks >= 50:\n    print("Exam Passed!")\nelse:\n    print("Review again")',
-      task: 'Write an if-statement checking if `marks >= 80`. If true, print "Grade A", else print "Grade B".'
-    },
-    {
-      id: 3,
-      title: "Loops: Automating Repetition",
-      summary: "Run instructions repeatedly without writing duplicate lines of code.",
-      analogy: "Like setting an alarm ring or running laps around a track.",
-      starterCode: 'for lap in range(1, 4):\n    print(f"Running lap #{lap}")',
-      task: 'Write a for-loop that counts from 1 to 5 using `for i in range(1, 6):` and prints each number.'
-    },
-    {
-      id: 4,
-      title: "Functions: Custom Commands",
-      summary: "Group code into a reusable tool you can execute anytime by name.",
-      analogy: "Like a microwave button: press 'Popcorn' and it automatically executes preset cooking logic.",
-      starterCode: 'def greet(name):\n    return f"Hello, {name}!"\n\nprint(greet("Explorer"))',
-      task: 'Define a function `add_numbers(a, b)` that returns `a + b`, then test it with `print(add_numbers(10, 20))`.'
-    }
-  ]
-};
+const LESSONS = [
+  {
+    id: 1,
+    title: "Variables & Memory Storage",
+    summary: "Learn how programs save and remember values in memory using labeled variables.",
+    analogy: "Like labeled boxes in a storage room: a box named 'player' holds your name, and a box named 'score' holds numbers.",
+    starterCode: 'player_name = "Manish"\nscore = 100\nprint(f"Player: {player_name}, Score: {score}")',
+    task: 'Create a variable named `user_age` set to your age (e.g. 17), then write: `print(user_age)`.'
+  },
+  {
+    id: 2,
+    title: "Conditions & Decision Making",
+    summary: "Make your program decide which path to take using if and else logic.",
+    analogy: "Like a traffic light: if green, drive forward; if red, stop.",
+    starterCode: 'score = 75\n\nif score >= 50:\n    print("Exam Passed!")\nelse:\n    print("Review again")',
+    task: 'Write an if-statement checking if `score >= 80`. If true, print "Grade A", else print "Grade B".'
+  },
+  {
+    id: 3,
+    title: "Loops: Repeating Operations",
+    summary: "Automate repetitive instructions without writing duplicate lines of code.",
+    analogy: "Like counting reps while exercising or setting a repeating morning alarm.",
+    starterCode: 'for lap in range(1, 4):\n    print(f"Running lap #{lap}")',
+    task: 'Write a for-loop that counts from 1 to 5 using `for i in range(1, 6):` and prints each number.'
+  },
+  {
+    id: 4,
+    title: "Functions: Reusable Blocks",
+    summary: "Bundle code into reusable commands you can execute anytime by name.",
+    analogy: "Like a preset microwave button: press 'Popcorn' and it runs all cooking steps automatically.",
+    starterCode: 'def greet(user):\n    return f"Hello, {user}!"\n\nprint(greet("Explorer"))',
+    task: 'Define a function `add_numbers(a, b)` that returns `a + b`, then test it with `print(add_numbers(10, 20))`.'
+  }
+];
 
 function App() {
   const [profile, setProfile] = useState(() => {
@@ -64,14 +63,13 @@ function App() {
         JSON.parse(localStorage.getItem(PROFILE_KEY)) || {
           name: "",
           language: "Python",
-          level: "Beginner",
           xp: 0,
           streak: 1,
           completedLessons: []
         }
       );
     } catch {
-      return { name: "", language: "Python", level: "Beginner", xp: 0, streak: 1, completedLessons: [] };
+      return { name: "", language: "Python", xp: 0, streak: 1, completedLessons: [] };
     }
   });
 
@@ -95,13 +93,14 @@ function App() {
     }
   }, []);
 
+  // In-Browser Python Execution Engine
   const runPythonCode = async () => {
-    setCodeOutput("Running Python via in-browser engine...");
+    setCodeOutput("Running Python via in-browser WebAssembly...");
     try {
       let py = pyodide;
       if (!py) {
         if (!window.loadPyodide) {
-          setCodeOutput("WebAssembly Python is initializing... please wait 3 seconds and retry.");
+          setCodeOutput("WebAssembly runtime loading... please wait 3 seconds and retry.");
           return;
         }
         py = await window.loadPyodide();
@@ -122,6 +121,7 @@ sys.stderr = io.StringIO()
     }
   };
 
+  // AI Task Verification via Gemini 2.5 Flash
   const verifyWithAI = async () => {
     if (!geminiKey.trim()) {
       alert("Please paste your Gemini API Key in the top header first.");
@@ -131,7 +131,7 @@ sys.stderr = io.StringIO()
     setIsVerifying(true);
     setAiFeedback("Teacher is reviewing your code logic...");
 
-    const prompt = `You are an encouraging coding teacher reviewing a student's answer.
+    const prompt = `You are a supportive, encouraging coding tutor reviewing a student's answer.
 Lesson: "${activeLesson.title}"
 Assigned Task: "${activeLesson.task}"
 Student's Code:
@@ -139,7 +139,7 @@ Student's Code:
 ${userCode}
 \`\`\`
 
-Evaluate if the code correctly fulfills the task.
+Evaluate if the code correctly solves the task.
 Return ONLY valid JSON matching this exact structure:
 {
   "passed": true,
@@ -147,7 +147,7 @@ Return ONLY valid JSON matching this exact structure:
 }`;
 
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${ACTIVE_MODEL}:generateContent?key=${geminiKey.trim()}`;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${WORKING_MODEL}:generateContent?key=${geminiKey.trim()}`;
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -156,7 +156,7 @@ Return ONLY valid JSON matching this exact structure:
 
       const data = await res.json();
       if (data.error) {
-        setAiFeedback(`Gemini Error: ${data.error.message}`);
+        setAiFeedback(`Gemini API Error: ${data.error.message}`);
       } else {
         let raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
         raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -174,15 +174,13 @@ Return ONLY valid JSON matching this exact structure:
         }
       }
     } catch (e) {
-      setAiFeedback("Could not reach Gemini API. Please check your key.");
+      setAiFeedback("Could not reach Gemini API. Please check your network or key.");
     } finally {
       setIsVerifying(false);
     }
   };
 
-  const currentLessons = CURRICULUM[profile.language] || CURRICULUM["Python"];
-
-  // 1. Profile Creation View
+  // 1. Profile Onboarding Screen (Replaces chatbot setup)
   if (!profile.name) {
     return (
       <div className="onboard-screen">
@@ -192,7 +190,7 @@ Return ONLY valid JSON matching this exact structure:
           </div>
           <h1>Create Your Student Profile</h1>
           <p style={{ color: "var(--muted)", fontSize: "14px", marginBottom: "22px" }}>
-            Start your personalized programming curriculum with in-browser practice and AI guidance.
+            Start your structured coding curriculum with in-browser practice and AI guidance.
           </p>
 
           <form
@@ -218,7 +216,7 @@ Return ONLY valid JSON matching this exact structure:
             </select>
 
             <button type="submit" className="primary full" style={{ marginTop: "24px" }}>
-              Build My Learning Track <ChevronRight size={16} />
+              Start Learning Path <ChevronRight size={16} />
             </button>
           </form>
         </div>
@@ -226,13 +224,13 @@ Return ONLY valid JSON matching this exact structure:
     );
   }
 
-  // 2. Interactive Lesson Studio (Split Screen: Theory + Code Editor + Terminal)
+  // 2. Interactive Practice Studio (Split Screen: Theory + Code Editor + Terminal)
   if (activeLesson) {
     return (
       <div className="lesson-page">
         <header className="topbar">
           <button className="textBtn" onClick={() => setActiveLesson(null)} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-            <ArrowLeft size={16} /> Back to Learning Track
+            <ArrowLeft size={16} /> Back to Track
           </button>
           <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
             <span className="xpPill"><Zap size={14} /> +100 XP</span>
@@ -297,7 +295,7 @@ Return ONLY valid JSON matching this exact structure:
 
   // 3. Learning Roadmap Dashboard
   const completedCount = profile.completedLessons.length;
-  const progressPercent = Math.round((completedCount / currentLessons.length) * 100);
+  const progressPercent = Math.round((completedCount / LESSONS.length) * 100);
 
   return (
     <div className="app-container">
@@ -362,14 +360,14 @@ Return ONLY valid JSON matching this exact structure:
             <h2>Python Mastery Path</h2>
           </div>
           <span style={{ color: "var(--muted)", fontSize: "13px" }}>
-            {completedCount} of {currentLessons.length} Modules Finished
+            {completedCount} of {LESSONS.length} Modules Finished
           </span>
         </div>
 
         <div className="roadmap-grid">
-          {currentLessons.map((lesson, idx) => {
+          {LESSONS.map((lesson, idx) => {
             const isCompleted = profile.completedLessons.includes(lesson.id);
-            const isLocked = idx > 0 && !profile.completedLessons.includes(currentLessons[idx - 1].id);
+            const isLocked = idx > 0 && !profile.completedLessons.includes(LESSONS[idx - 1].id);
 
             return (
               <div
