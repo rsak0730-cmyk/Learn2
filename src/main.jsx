@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BookOpen,
@@ -6,55 +6,137 @@ import {
   ChevronRight,
   Code2,
   Flame,
+  HelpCircle,
   Key,
   Layers,
   Lightbulb,
   Play,
   RotateCcw,
   Sparkles,
+  Terminal,
   Zap,
-  ArrowLeft
+  ArrowLeft,
+  Bot,
+  Compass,
+  Cpu
 } from "lucide-react";
 import "./styles.css";
 
-const PROFILE_KEY = "codeverse_user_profile";
-// Active working production model (replaces deprecated 1.5 endpoint)
-const WORKING_MODEL = "gemini-2.5-flash";
+const PROFILE_KEY = "codeverse_academy_profile";
+const ACTIVE_MODEL = "gemini-2.5-flash";
 
-const LESSONS = [
-  {
-    id: 1,
-    title: "Variables & Memory Storage",
-    summary: "Learn how programs save and remember values in memory using labeled variables.",
-    analogy: "Like labeled boxes in a storage room: a box named 'player' holds your name, and a box named 'score' holds numbers.",
-    starterCode: 'player_name = "Manish"\nscore = 100\nprint(f"Player: {player_name}, Score: {score}")',
-    task: 'Create a variable named `user_age` set to your age (e.g. 17), then write: `print(user_age)`.'
+const TRACKS = {
+  Python: {
+    color: "#38bdf8",
+    levels: [
+      {
+        id: "py-1",
+        tier: "Beginner",
+        title: "1. Variables & Data Types",
+        summary: "Understand memory boxes, strings, integers, and floats.",
+        analogy: "Like labeled jars in a kitchen holding sugar or salt.",
+        starterCode: 'player_name = "Manish"\nscore = 100\nprint(f"Player: {player_name}, Score: {score}")',
+        task: 'Create a variable named `user_age` set to 17, then print it using `print(user_age)`.'
+      },
+      {
+        id: "py-2",
+        tier: "Beginner",
+        title: "2. Conditional Decisions",
+        summary: "Master if, elif, and else logic gates.",
+        analogy: "Like deciding whether to carry an umbrella based on rain.",
+        starterCode: 'score = 85\n\nif score >= 50:\n    print("Passed")\nelse:\n    print("Review")',
+        task: 'Write an if-statement that prints "Grade A" if score >= 80, else prints "Grade B".'
+      },
+      {
+        id: "py-3",
+        tier: "Intermediate",
+        title: "3. Loops & Sequences",
+        summary: "Automate repetition with for and while loops.",
+        analogy: "Like running laps on an athletic field.",
+        starterCode: 'for i in range(1, 4):\n    print(f"Lap {i}")',
+        task: 'Write a loop that prints numbers from 1 to 5 using `range(1, 6)`.'
+      },
+      {
+        id: "py-4",
+        tier: "Advanced",
+        title: "4. Functions & Return Values",
+        summary: "Modularize logic into reusable components.",
+        analogy: "Like a recipe you can trigger on demand.",
+        starterCode: 'def greet(name):\n    return f"Hello, {name}!"\n\nprint(greet("Explorer"))',
+        task: 'Create a function `multiply(a, b)` that returns `a * b` and print `multiply(4, 5)`.'
+      }
+    ]
   },
-  {
-    id: 2,
-    title: "Conditions & Decision Making",
-    summary: "Make your program decide which path to take using if and else logic.",
-    analogy: "Like a traffic light: if green, drive forward; if red, stop.",
-    starterCode: 'score = 75\n\nif score >= 50:\n    print("Exam Passed!")\nelse:\n    print("Review again")',
-    task: 'Write an if-statement checking if `score >= 80`. If true, print "Grade A", else print "Grade B".'
+  JavaScript: {
+    color: "#facc15",
+    levels: [
+      {
+        id: "js-1",
+        tier: "Beginner",
+        title: "1. Variables: let vs const",
+        summary: "Store mutable and immutable values in modern JavaScript.",
+        analogy: "Const is permanent ink; let is pencil with an eraser.",
+        starterCode: 'const appName = "CodeVerse";\nlet xp = 50;\nconsole.log(appName, xp);',
+        task: 'Declare a variable `let level = 1;` and log it using `console.log(level);`.'
+      },
+      {
+        id: "js-2",
+        tier: "Intermediate",
+        title: "2. Arrow Functions & Callbacks",
+        summary: "Write concise modern functions.",
+        analogy: "A shortcut macro on your keyboard.",
+        starterCode: 'const add = (a, b) => a + b;\nconsole.log(add(5, 10));',
+        task: 'Create an arrow function `square = (n) => n * n` and log `square(6)`.'
+      },
+      {
+        id: "js-3",
+        tier: "Advanced",
+        title: "3. Array Methods & Map/Filter",
+        summary: "Transform collections declaratively without manual loops.",
+        analogy: "Like a conveyor belt sorting and packaging items.",
+        starterCode: 'const nums = [1, 2, 3];\nconst doubled = nums.map(n => n * 2);\nconsole.log(doubled);',
+        task: 'Use `.filter()` to keep only numbers greater than 10 from `[5, 12, 8, 20]`.'
+      }
+    ]
   },
-  {
-    id: 3,
-    title: "Loops: Repeating Operations",
-    summary: "Automate repetitive instructions without writing duplicate lines of code.",
-    analogy: "Like counting reps while exercising or setting a repeating morning alarm.",
-    starterCode: 'for lap in range(1, 4):\n    print(f"Running lap #{lap}")',
-    task: 'Write a for-loop that counts from 1 to 5 using `for i in range(1, 6):` and prints each number.'
+  "C++": {
+    color: "#60a5fa",
+    levels: [
+      {
+        id: "cpp-1",
+        tier: "Beginner",
+        title: "1. Syntax & Standard I/O",
+        summary: "Direct memory management and standard streams.",
+        analogy: "Speaking directly to the engine room without a translator.",
+        starterCode: '#include <iostream>\n\nint main() {\n    std::cout << "Hello CodeVerse!" << std::endl;\n    return 0;\n}',
+        task: 'Declare an integer `int score = 100;` and print it using `std::cout << score;`.'
+      },
+      {
+        id: "cpp-2",
+        tier: "Intermediate",
+        title: "2. Pointers & References",
+        summary: "Manipulate actual hardware memory addresses.",
+        analogy: "Giving someone the GPS coordinates instead of copying the house.",
+        starterCode: 'int val = 42;\nint* ptr = &val;\nstd::cout << *ptr;',
+        task: 'Create an integer `x = 10` and print its pointer memory address `&x`.'
+      }
+    ]
   },
-  {
-    id: 4,
-    title: "Functions: Reusable Blocks",
-    summary: "Bundle code into reusable commands you can execute anytime by name.",
-    analogy: "Like a preset microwave button: press 'Popcorn' and it runs all cooking steps automatically.",
-    starterCode: 'def greet(user):\n    return f"Hello, {user}!"\n\nprint(greet("Explorer"))',
-    task: 'Define a function `add_numbers(a, b)` that returns `a + b`, then test it with `print(add_numbers(10, 20))`.'
+  Rust: {
+    color: "#f97316",
+    levels: [
+      {
+        id: "rs-1",
+        tier: "Beginner",
+        title: "1. Immutability & Variables",
+        summary: "Memory safety without a garbage collector.",
+        analogy: "A strict contract where variables are locked by default.",
+        starterCode: 'fn main() {\n    let mut score = 10;\n    score += 5;\n    println!("Score: {}", score);\n}',
+        task: 'Declare a mutable variable `let mut xp = 0;` and print it using `println!("{}", xp);`.'
+      }
+    ]
   }
-];
+};
 
 function App() {
   const [profile, setProfile] = useState(() => {
@@ -62,24 +144,34 @@ function App() {
       return (
         JSON.parse(localStorage.getItem(PROFILE_KEY)) || {
           name: "",
-          language: "Python",
-          xp: 0,
+          selectedTrack: "Python",
+          xp: 100,
           streak: 1,
-          completedLessons: []
+          completed: []
         }
       );
     } catch {
-      return { name: "", language: "Python", xp: 0, streak: 1, completedLessons: [] };
+      return { name: "", selectedTrack: "Python", xp: 100, streak: 1, completed: [] };
     }
   });
 
+  const [navTab, setNavTab] = useState("curriculum"); // 'curriculum' | 'theory-lab'
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem("gemini_api_key") || "");
   const [activeLesson, setActiveLesson] = useState(null);
   const [userCode, setUserCode] = useState("");
-  const [codeOutput, setCodeOutput] = useState("");
-  const [aiFeedback, setAiFeedback] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [terminalOutput, setTerminalOutput] = useState("");
   const [pyodide, setPyodide] = useState(null);
+
+  // Helper AI & Teacher States
+  const [helperClues, setHelperClues] = useState([]);
+  const [isHelperThinking, setIsHelperThinking] = useState(false);
+  const [teacherEvaluation, setTeacherEvaluation] = useState("");
+  const [isEvaluating, setIsEvaluating] = useState(false);
+
+  // Theory Lab Interactive States
+  const [theoryTopic, setTheoryTopic] = useState("Recursion");
+  const [theoryText, setTheoryText] = useState("");
+  const [isTheoryLoading, setIsTheoryLoading] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
@@ -89,98 +181,188 @@ function App() {
     const loader = document.getElementById("loading");
     if (loader) {
       loader.style.opacity = "0";
-      setTimeout(() => loader.remove(), 200);
+      setTimeout(() => loader.remove(), 250);
     }
   }, []);
 
-  // In-Browser Python Execution Engine
-  const runPythonCode = async () => {
-    setCodeOutput("Running Python via in-browser WebAssembly...");
-    try {
-      let py = pyodide;
-      if (!py) {
-        if (!window.loadPyodide) {
-          setCodeOutput("WebAssembly runtime loading... please wait 3 seconds and retry.");
-          return;
+  // In-Browser Code Runner
+  const executeCode = async (codeToRun) => {
+    setTerminalOutput("Running code in-browser...");
+    const currentLang = profile.selectedTrack;
+
+    if (currentLang === "Python") {
+      try {
+        let py = pyodide;
+        if (!py) {
+          if (!window.loadPyodide) {
+            setTerminalOutput("WebAssembly engine initializing... Please wait 3 seconds and retry.");
+            return;
+          }
+          py = await window.loadPyodide();
+          setPyodide(py);
         }
-        py = await window.loadPyodide();
-        setPyodide(py);
-      }
-      py.runPython(`
+        py.runPython(`
 import sys
 import io
 sys.stdout = io.StringIO()
 sys.stderr = io.StringIO()
 `);
-      py.runPython(userCode);
-      const stdout = py.runPython("sys.stdout.getvalue()");
-      const stderr = py.runPython("sys.stderr.getvalue()");
-      setCodeOutput(stdout || stderr || "Execution finished with no output.");
-    } catch (err) {
-      setCodeOutput(`Execution Error: ${err.message || err}`);
+        py.runPython(codeToRun);
+        const out = py.runPython("sys.stdout.getvalue()");
+        const err = py.runPython("sys.stderr.getvalue()");
+        setTerminalOutput(out || err || "Program completed with 0 output.");
+      } catch (err) {
+        setTerminalOutput(`Runtime Error:\n${err.message || err}`);
+      }
+    } else if (currentLang === "JavaScript") {
+      const logs = [];
+      try {
+        const orig = console.log;
+        console.log = (...args) => logs.push(args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" "));
+        new Function(codeToRun)();
+        console.log = orig;
+        setTerminalOutput(logs.join("\n") || "Program completed with 0 output.");
+      } catch (err) {
+        setTerminalOutput(`JavaScript Error:\n${err.message || err}`);
+      }
+    } else {
+      setTerminalOutput(`Notice: ${currentLang} native compiler emulation is ready. (Runs client-side simulation).`);
     }
   };
 
-  // AI Task Verification via Gemini 2.5 Flash
-  const verifyWithAI = async () => {
-    if (!geminiKey.trim()) {
-      alert("Please paste your Gemini API Key in the top header first.");
+  // Helper AI: Analyzes code, error, and task to offer progressive clues
+  const askHelperAI = async () => {
+    if (!geminiKey) {
+      alert("Please paste your Gemini API Key in the top bar to activate Helper AI.");
       return;
     }
 
-    setIsVerifying(true);
-    setAiFeedback("Teacher is reviewing your code logic...");
-
-    const prompt = `You are a supportive, encouraging coding tutor reviewing a student's answer.
-Lesson: "${activeLesson.title}"
-Assigned Task: "${activeLesson.task}"
-Student's Code:
-\`\`\`python
+    setIsHelperThinking(true);
+    const prompt = `You are "Helper AI", a friendly coding assistant sitting right next to a student.
+Task to solve: "${activeLesson ? activeLesson.task : theoryTopic}"
+Language: ${profile.selectedTrack}
+Current Code written by student:
+\`\`\`
 ${userCode}
 \`\`\`
+Latest Terminal Output/Error:
+\`\`\`
+${terminalOutput}
+\`\`\`
 
-Evaluate if the code correctly solves the task.
-Return ONLY valid JSON matching this exact structure:
-{
-  "passed": true,
-  "comment": "1-2 sentences of encouraging feedback or advice."
-}`;
+Give 2 short, bulleted clues or hints. DO NOT write the full answer directly. Point out logic gaps or syntax typos so the student learns by fixing it themselves.`;
 
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${WORKING_MODEL}:generateContent?key=${geminiKey.trim()}`;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${ACTIVE_MODEL}:generateContent?key=${geminiKey.trim()}`;
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
       });
-
       const data = await res.json();
-      if (data.error) {
-        setAiFeedback(`Gemini API Error: ${data.error.message}`);
-      } else {
-        let raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-        raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
-        const result = JSON.parse(raw);
-        setAiFeedback(result.comment);
-
-        if (result.passed) {
-          if (!profile.completedLessons.includes(activeLesson.id)) {
-            setProfile((prev) => ({
-              ...prev,
-              xp: prev.xp + 100,
-              completedLessons: [...prev.completedLessons, activeLesson.id]
-            }));
-          }
-        }
-      }
+      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Helper could not inspect code.";
+      setHelperClues((prev) => [...prev, reply]);
     } catch (e) {
-      setAiFeedback("Could not reach Gemini API. Please check your network or key.");
+      setHelperClues((prev) => [...prev, "Helper AI connection failed. Check your API key."]);
     } finally {
-      setIsVerifying(false);
+      setIsHelperThinking(false);
     }
   };
 
-  // 1. Profile Onboarding Screen (Replaces chatbot setup)
+  // Main Teacher: Formal Verification & XP Award
+  const submitToTeacher = async () => {
+    if (!geminiKey) {
+      alert("Please enter your Gemini API Key in the top bar.");
+      return;
+    }
+
+    setIsEvaluating(true);
+    setTeacherEvaluation("Teacher is evaluating your submission...");
+
+    const prompt = `You are the Lead Academy Instructor.
+Module: "${activeLesson.title}"
+Task Goal: "${activeLesson.task}"
+Student Code:
+\`\`\`
+${userCode}
+\`\`\`
+
+Check if the student code passes the task requirement.
+Return ONLY valid JSON matching this structure:
+{
+  "passed": true,
+  "feedback": "2 sentences praising accuracy or giving direct instruction on what to adjust."
+}`;
+
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${ACTIVE_MODEL}:generateContent?key=${geminiKey.trim()}`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+      const data = await res.json();
+      let raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
+      const result = JSON.parse(raw);
+
+      setTeacherEvaluation(result.feedback);
+
+      if (result.passed) {
+        if (!profile.completed.includes(activeLesson.id)) {
+          setProfile((prev) => ({
+            ...prev,
+            xp: prev.xp + 150,
+            completed: [...prev.completed, activeLesson.id]
+          }));
+        }
+      }
+    } catch (err) {
+      setTeacherEvaluation("Could not connect to Teacher AI. Please verify key.");
+    } finally {
+      setIsEvaluating(false);
+    }
+  };
+
+  // Generate Theory Lesson with AI Teacher
+  const requestTheoryLecture = async (topic) => {
+    if (!geminiKey) {
+      alert("Enter Gemini API Key in the header to generate live theory lectures.");
+      return;
+    }
+
+    setIsTheoryLoading(true);
+    setTheoryText("AI Teacher is preparing a lesson lecture...");
+
+    const prompt = `You are a computer science professor explaining the concept of "${topic}" in ${profile.selectedTrack}.
+Structure your explanation into:
+1. The Core Concept (Plain English, 2-3 sentences)
+2. A Real-World Metaphor / Analogy
+3. A Minimal Code Example
+4. A 1-sentence prompt for the student to practice in the terminal.`;
+
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${ACTIVE_MODEL}:generateContent?key=${geminiKey.trim()}`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+      const data = await res.json();
+      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Failed to generate theory lecture.";
+      setTheoryText(reply);
+    } catch (e) {
+      setTheoryText("Could not generate lecture. Please check API key.");
+    } finally {
+      setIsTheoryLoading(false);
+    }
+  };
+
+  const currentTrackData = TRACKS[profile.selectedTrack] || TRACKS.Python;
+  const currentLevels = currentTrackData.levels;
+  const studentLevel = Math.floor(profile.xp / 250) + 1;
+
+  // Onboarding Screen if profile is missing
   if (!profile.name) {
     return (
       <div className="onboard-screen">
@@ -188,35 +370,38 @@ Return ONLY valid JSON matching this exact structure:
           <div className="brandMark" style={{ margin: "0 auto 16px" }}>
             <Code2 size={24} />
           </div>
-          <h1>Create Your Student Profile</h1>
-          <p style={{ color: "var(--muted)", fontSize: "14px", marginBottom: "22px" }}>
-            Start your structured coding curriculum with in-browser practice and AI guidance.
+          <h1>CodeVerse Academy</h1>
+          <p style={{ color: "var(--muted)", fontSize: "14px", marginBottom: "24px" }}>
+            Learn any programming language from 0 to Advanced with interactive tasks, in-browser code execution, and an AI helper.
           </p>
 
           <form
             onSubmit={(e) => {
               e.preventDefault();
               const name = e.target.username.value.trim();
+              const selectedTrack = e.target.track.value;
               if (!name) return;
-              setProfile((prev) => ({ ...prev, name }));
+              setProfile((p) => ({ ...p, name, selectedTrack }));
             }}
           >
-            <label className="input-label">Your Name</label>
+            <label className="input-label">Student Name</label>
             <input
               name="username"
               type="text"
-              placeholder="e.g. Manish"
+              placeholder="e.g. Manish Kumar"
               required
               className="styled-input"
             />
 
-            <label className="input-label" style={{ marginTop: "14px" }}>Language Track</label>
-            <select className="styled-input" disabled>
-              <option>Python Fundamentals</option>
+            <label className="input-label" style={{ marginTop: "14px" }}>Select Starting Language</label>
+            <select name="track" className="styled-input">
+              {Object.keys(TRACKS).map((lang) => (
+                <option key={lang} value={lang}>{lang}</option>
+              ))}
             </select>
 
             <button type="submit" className="primary full" style={{ marginTop: "24px" }}>
-              Start Learning Path <ChevronRight size={16} />
+              Enter Academy <ChevronRight size={16} />
             </button>
           </form>
         </div>
@@ -224,51 +409,80 @@ Return ONLY valid JSON matching this exact structure:
     );
   }
 
-  // 2. Interactive Practice Studio (Split Screen: Theory + Code Editor + Terminal)
+  // Active Lesson Split-Screen Studio
   if (activeLesson) {
     return (
       <div className="lesson-page">
         <header className="topbar">
           <button className="textBtn" onClick={() => setActiveLesson(null)} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-            <ArrowLeft size={16} /> Back to Track
+            <ArrowLeft size={16} /> Exit Studio
           </button>
           <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
-            <span className="xpPill"><Zap size={14} /> +100 XP</span>
+            <span className="xpPill"><Zap size={14} /> +150 XP Reward</span>
           </div>
         </header>
 
-        <div className="lesson-layout">
-          <div className="lesson-content-panel">
-            <span className="eyebrow"><BookOpen size={14} /> LESSON {activeLesson.id}</span>
+        <div className="studio-container">
+          {/* Left Panel: Lesson Theory & Missions */}
+          <div className="studio-col left-panel">
+            <span className="eyebrow"><BookOpen size={14} /> {activeLesson.tier.toUpperCase()} · MODULE</span>
             <h2>{activeLesson.title}</h2>
-            <p style={{ color: "var(--text)", lineHeight: "1.7", fontSize: "14px" }}>{activeLesson.summary}</p>
+            <p className="lesson-text">{activeLesson.summary}</p>
 
-            <div className="concept" style={{ margin: "20px 0" }}>
+            <div className="concept">
               <Lightbulb className="conceptIcon" />
               <div>
-                <b>Mental Model</b>
+                <b>Mental Model Analogy</b>
                 <p>{activeLesson.analogy}</p>
               </div>
             </div>
 
-            <div style={{ background: "var(--panel2)", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)" }}>
-              <b style={{ color: "#a89dff" }}>Your Mission:</b>
+            <div className="mission-box">
+              <b style={{ color: "#a89dff" }}>Mission Objective:</b>
               <p style={{ margin: "6px 0 0", fontSize: "13px", lineHeight: "1.6" }}>{activeLesson.task}</p>
             </div>
 
-            {aiFeedback && (
-              <div style={{ marginTop: "18px", padding: "14px", borderRadius: "10px", background: "rgba(139,124,255,0.1)", border: "1px solid var(--accent)", fontSize: "13px", lineHeight: "1.6" }}>
-                <b>Teacher Evaluation:</b>
-                <p style={{ margin: "6px 0 0" }}>{aiFeedback}</p>
+            {/* Helper AI Drawer */}
+            <div className="helper-drawer">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700, fontSize: "13px" }}>
+                  <Bot size={16} color="#38bdf8" /> Helper.AI (Clues & Guidance)
+                </span>
+                <button className="secondary" style={{ padding: "4px 8px", fontSize: "11px" }} onClick={askHelperAI} disabled={isHelperThinking}>
+                  {isHelperThinking ? "Inspecting..." : "Ask for Clue"}
+                </button>
+              </div>
+
+              {helperClues.length > 0 ? (
+                <div className="clue-list">
+                  {helperClues.map((clue, idx) => (
+                    <div key={idx} className="clue-card">
+                      <b>Clue #{idx + 1}:</b>
+                      <p>{clue}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: "11px", color: "var(--muted)", margin: "8px 0 0" }}>
+                  Stuck or getting an error? Click "Ask for Clue" and Helper.AI will inspect your code without spoiling the solution.
+                </p>
+              )}
+            </div>
+
+            {teacherEvaluation && (
+              <div className="teacher-feedback">
+                <b>Teacher's Verdict:</b>
+                <p style={{ margin: "6px 0 0" }}>{teacherEvaluation}</p>
               </div>
             )}
           </div>
 
-          <div className="lesson-editor-panel">
+          {/* Right Panel: Code Sandbox & Terminal */}
+          <div className="studio-col right-panel">
             <div className="editorHead">
-              <span>Interactive Python Editor</span>
-              <button className="runBtn" onClick={runPythonCode}>
-                <Play size={13} /> Run Code
+              <span>{profile.selectedTrack} Code Editor</span>
+              <button className="runBtn" onClick={() => executeCode(userCode)}>
+                <Play size={13} /> Run in Terminal
               </button>
             </div>
 
@@ -280,44 +494,62 @@ Return ONLY valid JSON matching this exact structure:
             />
 
             <div className="terminal-box">
-              <span style={{ fontSize: "11px", color: "var(--muted)", display: "block", marginBottom: "4px" }}>Terminal Output:</span>
-              <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{codeOutput || "Run code to verify output..."}</pre>
+              <span style={{ fontSize: "11px", color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                In-Browser Terminal Output:
+              </span>
+              <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{terminalOutput || "Press 'Run in Terminal' to execute."}</pre>
             </div>
 
-            <button className="primary full" style={{ marginTop: "12px" }} onClick={verifyWithAI} disabled={isVerifying}>
-              <Sparkles size={16} /> {isVerifying ? "Evaluating..." : "Submit to AI Teacher"}
-            </button>
+            <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+              <button className="primary full" onClick={submitToTeacher} disabled={isEvaluating}>
+                <Sparkles size={16} /> {isEvaluating ? "Evaluating..." : "Submit to Main Teacher"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // 3. Learning Roadmap Dashboard
-  const completedCount = profile.completedLessons.length;
-  const progressPercent = Math.round((completedCount / LESSONS.length) * 100);
-
+  // Dashboard & Navigation Shell
   return (
     <div className="app-container">
+      {/* Top Navbar */}
       <header className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div className="brandMark"><Code2 size={18} /></div>
           <b>CodeVerse Academy</b>
         </div>
 
-        <div style={{ marginLeft: "auto", display: "flex", gap: "12px", alignItems: "center" }}>
-          <div className="streak"><Flame size={15} /> {profile.streak} Day Streak</div>
-          <div className="xpPill"><Zap size={14} /> {profile.xp} XP</div>
+        {/* Tab Switcher */}
+        <div className="nav-tabs-center">
+          <button
+            className={`tab-btn ${navTab === "curriculum" ? "active" : ""}`}
+            onClick={() => setNavTab("curriculum")}
+          >
+            <Layers size={14} /> Curriculum Tracks
+          </button>
+          <button
+            className={`tab-btn ${navTab === "theory-lab" ? "active" : ""}`}
+            onClick={() => setNavTab("theory-lab")}
+          >
+            <Terminal size={14} /> Theory & Terminal Lab
+          </button>
+        </div>
+
+        <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
+          <div className="streak"><Flame size={15} /> {profile.streak} Day</div>
+          <div className="xpPill"><Zap size={14} /> {profile.xp} XP (Lvl {studentLevel})</div>
           <input
             type="password"
-            placeholder="Paste Gemini API Key"
+            placeholder="Gemini API Key"
             value={geminiKey}
             onChange={(e) => {
               setGeminiKey(e.target.value);
               localStorage.setItem("gemini_api_key", e.target.value.trim());
             }}
             style={{
-              width: "140px",
+              width: "130px",
               background: "var(--panel2)",
               border: "1px solid var(--line)",
               padding: "6px 10px",
@@ -330,21 +562,31 @@ Return ONLY valid JSON matching this exact structure:
       </header>
 
       <div className="content">
+        {/* Profile Card */}
         <div className="profile-banner">
           <div className="avatar" style={{ width: "48px", height: "48px", fontSize: "18px" }}>
             {profile.name[0]?.toUpperCase()}
           </div>
           <div>
-            <h2 style={{ margin: "0 0 4px" }}>Welcome, {profile.name}!</h2>
-            <p style={{ color: "var(--muted)", margin: 0, fontSize: "13px" }}>
-              Track: <b>{profile.language} Course</b> · Progress: {progressPercent}%
-            </p>
+            <h2 style={{ margin: "0 0 4px" }}>Welcome back, {profile.name}!</h2>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <span style={{ fontSize: "13px", color: "var(--muted)" }}>Active Track:</span>
+              <select
+                value={profile.selectedTrack}
+                onChange={(e) => setProfile((p) => ({ ...p, selectedTrack: e.target.value }))}
+                className="track-select"
+              >
+                {Object.keys(TRACKS).map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <button
             className="secondary"
             style={{ marginLeft: "auto" }}
             onClick={() => {
-              if (confirm("Reset profile and all progress?")) {
+              if (confirm("Reset profile and learning progress?")) {
                 localStorage.clear();
                 location.reload();
               }
@@ -354,49 +596,127 @@ Return ONLY valid JSON matching this exact structure:
           </button>
         </div>
 
-        <div className="sectionHead" style={{ marginTop: "32px" }}>
+        {/* TAB 1: CURRICULUM ROADMAP */}
+        {navTab === "curriculum" && (
           <div>
-            <span className="eyebrow"><Layers size={14} /> CURRICULUM ROADMAP</span>
-            <h2>Python Mastery Path</h2>
-          </div>
-          <span style={{ color: "var(--muted)", fontSize: "13px" }}>
-            {completedCount} of {LESSONS.length} Modules Finished
-          </span>
-        </div>
-
-        <div className="roadmap-grid">
-          {LESSONS.map((lesson, idx) => {
-            const isCompleted = profile.completedLessons.includes(lesson.id);
-            const isLocked = idx > 0 && !profile.completedLessons.includes(LESSONS[idx - 1].id);
-
-            return (
-              <div
-                key={lesson.id}
-                className={`roadmap-card ${isCompleted ? "completed" : ""} ${isLocked ? "locked" : ""}`}
-                onClick={() => {
-                  if (isLocked) return;
-                  setActiveLesson(lesson);
-                  setUserCode(lesson.starterCode);
-                  setCodeOutput("");
-                  setAiFeedback("");
-                }}
-              >
-                <div className="step-badge">
-                  {isCompleted ? <CheckCircle size={20} color="#4ade80" /> : idx + 1}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ margin: "0 0 6px", fontSize: "16px" }}>{lesson.title}</h3>
-                  <p style={{ margin: 0, color: "var(--muted)", fontSize: "12px", lineHeight: "1.5" }}>
-                    {lesson.summary}
-                  </p>
-                </div>
-                <button className="primary" style={{ padding: "8px 14px", fontSize: "12px" }} disabled={isLocked}>
-                  {isCompleted ? "Review" : "Start"} <ChevronRight size={14} />
-                </button>
+            <div className="sectionHead" style={{ marginTop: "32px" }}>
+              <div>
+                <span className="eyebrow"><Compass size={14} /> STRUCTURED SYLLABUS</span>
+                <h2>{profile.selectedTrack} Learning Progression</h2>
               </div>
-            );
-          })}
-        </div>
+              <span style={{ color: "var(--muted)", fontSize: "13px" }}>
+                {profile.completed.length} Modules Completed
+              </span>
+            </div>
+
+            <div className="roadmap-grid">
+              {currentLevels.map((lvl, idx) => {
+                const isCompleted = profile.completed.includes(lvl.id);
+                const isLocked = idx > 0 && !profile.completed.includes(currentLevels[idx - 1].id);
+
+                return (
+                  <div
+                    key={lvl.id}
+                    className={`roadmap-card ${isCompleted ? "completed" : ""} ${isLocked ? "locked" : ""}`}
+                    onClick={() => {
+                      if (isLocked) return;
+                      setActiveLesson(lvl);
+                      setUserCode(lvl.starterCode);
+                      setTerminalOutput("");
+                      setHelperClues([]);
+                      setTeacherEvaluation("");
+                    }}
+                  >
+                    <div className="step-badge">
+                      {isCompleted ? <CheckCircle size={20} color="#4ade80" /> : idx + 1}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <span className="tier-pill">{lvl.tier}</span>
+                        <h3 style={{ margin: 0, fontSize: "16px" }}>{lvl.title}</h3>
+                      </div>
+                      <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: "12px", lineHeight: "1.5" }}>
+                        {lvl.summary}
+                      </p>
+                    </div>
+                    <button className="primary" style={{ padding: "8px 14px", fontSize: "12px" }} disabled={isLocked}>
+                      {isCompleted ? "Review" : "Start"} <ChevronRight size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: THEORY & TERMINAL LAB */}
+        {navTab === "theory-lab" && (
+          <div style={{ marginTop: "32px" }}>
+            <div className="sectionHead">
+              <div>
+                <span className="eyebrow"><Cpu size={14} /> LECTURE & EXPERIMENT LAB</span>
+                <h2>AI Theory & Live Terminal Sandbox</h2>
+              </div>
+            </div>
+
+            <div className="theory-container">
+              {/* Theory Lecture Panel */}
+              <div className="panel" style={{ flex: 1 }}>
+                <h3>Ask AI Teacher for a Concept Breakdown</h3>
+                <div style={{ display: "flex", gap: "10px", margin: "14px 0" }}>
+                  <input
+                    type="text"
+                    value={theoryTopic}
+                    onChange={(e) => setTheoryTopic(e.target.value)}
+                    placeholder="e.g. Recursion, Pointers, Binary Trees"
+                    className="styled-input"
+                    style={{ flex: 1 }}
+                  />
+                  <button className="primary" onClick={() => requestTheoryLecture(theoryTopic)} disabled={isTheoryLoading}>
+                    <Sparkles size={14} /> {isTheoryLoading ? "Lecturing..." : "Teach Me"}
+                  </button>
+                </div>
+
+                {theoryText ? (
+                  <div className="lecture-content">
+                    <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", lineHeight: "1.7", fontSize: "13px" }}>
+                      {theoryText}
+                    </pre>
+                  </div>
+                ) : (
+                  <p style={{ color: "var(--muted)", fontSize: "13px" }}>
+                    Type any technical topic above. The AI Teacher will explain the theory, share a real-world metaphor, and provide runnable syntax for the terminal.
+                  </p>
+                )}
+              </div>
+
+              {/* Live Terminal Sandbox */}
+              <div className="panel" style={{ flex: 1 }}>
+                <div className="editorHead">
+                  <span>Live Practice Terminal ({profile.selectedTrack})</span>
+                  <button className="runBtn" onClick={() => executeCode(userCode || 'print("Hello from terminal!")')}>
+                    <Play size={13} /> Run
+                  </button>
+                </div>
+
+                <textarea
+                  className="code-textarea"
+                  value={userCode}
+                  placeholder={`Write ${profile.selectedTrack} code here to experiment with theory...`}
+                  onChange={(e) => setUserCode(e.target.value)}
+                  style={{ minHeight: "180px" }}
+                />
+
+                <div className="terminal-box">
+                  <span style={{ fontSize: "11px", color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                    Terminal Output:
+                  </span>
+                  <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{terminalOutput || "Ready."}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
