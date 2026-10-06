@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Suspense, lazy, useRef } from "react";
+import React, { useEffect, useState, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BookOpen,
@@ -34,7 +34,12 @@ import {
 } from "lucide-react";
 import "./styles.css";
 
-const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+// Lazy load Monaco safely with an inline fallback for mobile browsers
+const MonacoEditor = lazy(() =>
+  import("@monaco-editor/react").catch(() => ({
+    default: () => null
+  }))
+);
 
 const AVAILABLE_MODELS = [
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash (Recommended - Fast & Smart)" },
@@ -42,18 +47,22 @@ const AVAILABLE_MODELS = [
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Ultra Fast)" }
 ];
 
-function CodeEditorWrapper({ value, onChange, language, height = "400px" }) {
-  const [hasError, setHasError] = useState(false);
+function SafeCodeEditor({ value, onChange, language, height = "400px" }) {
+  const [monacoFailed, setMonacoFailed] = useState(false);
 
-  if (hasError) {
+  // If Monaco fails on mobile WebKit/Blink, provide a responsive textarea editor
+  if (monacoFailed) {
     return (
       <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        spellCheck="false"
         style={{
           width: "100%",
           height,
           background: "#080c15",
           color: "#eef2ff",
-          fontFamily: "monospace",
+          fontFamily: "ui-monospace, monospace",
           fontSize: "14px",
           border: "none",
           padding: "16px",
@@ -61,8 +70,6 @@ function CodeEditorWrapper({ value, onChange, language, height = "400px" }) {
           boxSizing: "border-box",
           resize: "none"
         }}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
       />
     );
   }
@@ -71,7 +78,7 @@ function CodeEditorWrapper({ value, onChange, language, height = "400px" }) {
     <Suspense
       fallback={
         <div style={{ height, display: "grid", placeItems: "center", color: "#8994aa" }}>
-          Loading editor...
+          Initializing editor...
         </div>
       }
     >
@@ -81,6 +88,8 @@ function CodeEditorWrapper({ value, onChange, language, height = "400px" }) {
         language={language}
         value={value}
         onChange={(val) => onChange(val || "")}
+        onMount={() => {}}
+        onError={() => setMonacoFailed(true)}
         options={{
           minimap: { enabled: false },
           fontSize: 14,
@@ -294,10 +303,8 @@ function App() {
   };
 
   useEffect(() => {
-    const loader = document.getElementById("loading");
-    if (loader) {
-      loader.style.opacity = "0";
-      setTimeout(() => loader.remove(), 250);
+    if (window.dismissLoader) {
+      window.dismissLoader();
     }
   }, []);
 
@@ -548,7 +555,7 @@ function CustomAiTutor({ geminiKey, selectedModel, addXp, toast, onOpenSettings 
         setUserCode(savedCourse.syllabus[savedCourse.currentStepIndex || 0]?.starterCode || "");
       }
     } catch (e) {
-      console.error("Failed to load saved AI track", e);
+      console.error(e);
     }
   }, []);
 
@@ -571,11 +578,11 @@ function CustomAiTutor({ geminiKey, selectedModel, addXp, toast, onOpenSettings 
     }
 
     setIsLoading(true);
-    setFeedback("Building your custom structured curriculum with Gemini...");
+    setFeedback("Designing structured curriculum with Gemini...");
 
-    const prompt = `You are a curriculum designer for programming education.
-Create a high-impact, 6-step progressive lesson syllabus for learning "${language}" at "${level}" level.
-Return ONLY valid JSON matching this exact structure with no extra markdown text:
+    const prompt = `You are a curriculum designer.
+Create a structured 6-step progressive lesson syllabus for learning "${language}" at "${level}" level.
+Return ONLY valid JSON matching this exact structure with no markdown backticks:
 [
   {
     "id": 1,
@@ -623,7 +630,7 @@ Return ONLY valid JSON matching this exact structure with no extra markdown text
     setFeedback("Evaluating your solution...");
 
     const activeStep = syllabus[currentStepIndex];
-    const prompt = `You are an encouraging coding teacher evaluating a student's answer for ${language}.
+    const prompt = `You are an encouraging coding teacher evaluating an answer for ${language}.
 Lesson task: "${activeStep.task}"
 Student's code:
 \`\`\`
@@ -634,7 +641,7 @@ Evaluate if the code correctly solves the task.
 Return ONLY valid JSON in this exact structure:
 {
   "passed": true,
-  "message": "2-3 sentences of constructive feedback, encouragement, or explanation of what needs fixing."
+  "message": "2-3 sentences of feedback, encouragement, or explanation of what needs fixing."
 }`;
 
     try {
@@ -724,7 +731,6 @@ Return ONLY valid JSON in this exact structure:
         </div>
       ) : (
         <div className="learnLayout">
-          {/* Left Step Roadmap */}
           <div className="lessonList">
             <div style={{ padding: "14px", background: "var(--panel)", border: "1px solid var(--line)", borderRadius: "14px", marginBottom: "10px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "8px" }}>
@@ -763,11 +769,10 @@ Return ONLY valid JSON in this exact structure:
                 setSyllabus([]);
               }}
             >
-              <RotateCcw size={15} /> Reset / Pick New Language
+              <RotateCcw size={15} /> Reset Track
             </button>
           </div>
 
-          {/* Right Active Step Work Area */}
           {activeLesson && (
             <section className="panel lessonDetail">
               <div className="detailTop">
@@ -818,7 +823,7 @@ Return ONLY valid JSON in this exact structure:
 
               <div className="detailActions">
                 <button className="primary" onClick={verifyStep} disabled={isLoading}>
-                  <Check size={16} /> Submit & Check with AI
+                  <Check size={16} /> Submit & Check
                 </button>
               </div>
 
@@ -1270,7 +1275,7 @@ function Learn({ completed, selected, setSelected, finish, search }) {
 }
 
 /* =========================================================
-   PLAYGROUND (WITH IN-BROWSER PYTHON VIA PYODIDE & AI REVIEW)
+   PLAYGROUND
 ========================================================= */
 function Playground({ geminiKey, selectedModel, toast }) {
   const [language, setLanguage] = useState("javascript");
@@ -1290,7 +1295,7 @@ function Playground({ geminiKey, selectedModel, toast }) {
   };
 
   const run = async () => {
-    // 1. In-Browser JavaScript Execution
+    // 1. JavaScript In-Browser Runtime
     if (language === "javascript") {
       const logs = [];
       try {
@@ -1307,14 +1312,14 @@ function Playground({ geminiKey, selectedModel, toast }) {
       return;
     }
 
-    // 2. In-Browser Python Execution via Pyodide
+    // 2. Python in-browser via Pyodide WebAssembly
     if (language === "python") {
-      setOutput("Running Python in browser via WebAssembly...");
+      setOutput("Executing Python via WebAssembly in browser...");
       try {
         let py = pyodideInstance;
         if (!py) {
           if (!window.loadPyodide) {
-            setOutput("Pyodide engine is still loading from CDN. Please wait 5 seconds and run again.");
+            setOutput("Pyodide engine is downloading from CDN. Try again in 4 seconds.");
             return;
           }
           setIsPyLoading(true);
@@ -1339,7 +1344,7 @@ sys.stderr = io.StringIO()
       return;
     }
 
-    // 3. HTML/CSS Live Sandbox Preview
+    // 3. HTML/CSS Sandbox Preview
     if (language === "html" || language === "css") {
       setPreview(true);
       setOutput("Live preview updated.");
@@ -1429,7 +1434,7 @@ Provide:
             </div>
           </div>
 
-          <CodeEditorWrapper
+          <SafeCodeEditor
             language={language === "python" ? "python" : language}
             value={code}
             onChange={(val) => setCode(val)}
@@ -1473,7 +1478,7 @@ Provide:
 }
 
 /* =========================================================
-   VISUAL LAB (WITH STEPPING ALGORITHM VISUALIZER)
+   VISUAL LAB
 ========================================================= */
 function VisualLab() {
   const [values, setValues] = useState([34, 72, 51, 91, 18, 64, 42, 83]);
@@ -1485,13 +1490,11 @@ function VisualLab() {
 
   const handleBubbleSortStep = () => {
     const arr = [...values];
-    let swapped = false;
     for (let i = 0; i < arr.length - 1; i++) {
       if (arr[i] > arr[i + 1]) {
         const tmp = arr[i];
         arr[i] = arr[i + 1];
         arr[i + 1] = tmp;
-        swapped = true;
         break;
       }
     }
@@ -1683,7 +1686,7 @@ function Challenges({ selected, setSelected, addXp, toast }) {
           <p>{challenge.prompt}</p>
 
           <div className="challengeEditor">
-            <CodeEditorWrapper
+            <SafeCodeEditor
               language={challenge.lang}
               value={code}
               onChange={(val) => setCode(val)}
@@ -1756,7 +1759,7 @@ function Debug() {
 }
 
 /* =========================================================
-   CAREER MODE & GITHUB PRACTICE
+   CAREER & GITHUB
 ========================================================= */
 function Career() {
   const paths = [
@@ -1799,7 +1802,7 @@ function GitHubPage() {
 }
 
 /* =========================================================
-   SETTINGS PAGE
+   SETTINGS
 ========================================================= */
 function SettingsPage({
   theme,
@@ -1910,7 +1913,13 @@ function SettingsPage({
   );
 }
 
+// Ensure execution catches top-level rendering failures
 const rootElement = document.getElementById("root");
 if (rootElement) {
-  createRoot(rootElement).render(<App />);
+  try {
+    createRoot(rootElement).render(<App />);
+  } catch (err) {
+    console.error("Mount failure:", err);
+    if (window.dismissLoader) window.dismissLoader();
+  }
 }

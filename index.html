@@ -11,8 +11,7 @@
   <title>CodeVerse — Interactive Learning Engine</title>
 
   <style>
-    html,
-    body {
+    html, body {
       margin: 0;
       padding: 0;
       width: 100%;
@@ -22,13 +21,7 @@
 
     body {
       color: #eef2ff;
-      font-family:
-        Inter,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     #root {
@@ -50,8 +43,8 @@
     }
 
     .loader {
-      width: 46px;
-      height: 46px;
+      width: 44px;
+      height: 44px;
       border: 3px solid #20293a;
       border-top-color: #8b7cff;
       border-radius: 50%;
@@ -59,9 +52,7 @@
     }
 
     @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
+      to { transform: rotate(360deg); }
     }
 
     .loading-text {
@@ -71,32 +62,42 @@
     }
   </style>
 
-  <!-- Pyodide for in-browser Python execution without servers -->
+  <!-- In-browser Python runtime via Pyodide -->
   <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js" defer></script>
 </head>
 
 <body>
   <div id="loading">
     <div class="loader"></div>
-    <span class="loading-text">Loading CodeVerse...</span>
+    <span class="loading-text">Starting CodeVerse...</span>
   </div>
 
   <div id="root"></div>
 
   <script>
+    window.dismissLoader = function () {
+      var l = document.getElementById("loading");
+      if (l) {
+        l.style.opacity = "0";
+        setTimeout(function () { if (l) l.remove(); }, 300);
+      }
+    };
+
     window.addEventListener("error", function (event) {
       console.error(event.error || event.message);
-      var loader = document.getElementById("loading");
-      if (loader) loader.remove();
+      window.dismissLoader();
     });
 
     window.addEventListener("unhandledrejection", function (event) {
       console.error(event.reason);
-      var loader = document.getElementById("loading");
-      if (loader) loader.remove();
+      window.dismissLoader();
     });
+
+    // Fallback: Remove loader after 4 seconds no matter what
+    setTimeout(window.dismissLoader, 4000);
   </script>
 
-  <script type="module" src="./src/main.jsx"></script>
+  <!-- Vite entry -->
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

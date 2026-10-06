@@ -3,20 +3,22 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-
-  // GitHub Pages fix.
-  // Allows the app to work inside:
-  // https://username.github.io/repository-name/
   base: "./",
-
-  server: {
-    host: true,
-    port: 5173
-  },
-
   build: {
     outDir: "dist",
     assetsDir: "assets",
-    sourcemap: false
+    sourcemap: false,
+    chunkSizeWarningLimit: 1600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "lucide-react"]
+        }
+      }
+    }
+  },
+  server: {
+    host: true,
+    port: 5173
   }
 });
