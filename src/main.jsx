@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, Suspense, lazy } from "react";
+import React, { useEffect, useState, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BookOpen,
@@ -11,8 +11,8 @@ import {
   Flame,
   FolderKanban,
   Github,
-  GitBranch,
   Home as HomeIcon,
+  Key,
   Lightbulb,
   Menu,
   Moon,
@@ -27,14 +27,18 @@ import {
   Target,
   Terminal,
   Trophy,
-  Users,
   X,
   Zap
 } from "lucide-react";
 import "./styles.css";
 
-// Lazy load Monaco so any worker failure won't kill the whole UI
 const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+
+const AVAILABLE_MODELS = [
+  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash (Recommended - Fast & Smart)" },
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro (Deep Reasoning & Analysis)" },
+  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Ultra Fast)" }
+];
 
 function CodeEditorWrapper({ value, onChange, language, height = "400px" }) {
   const [hasError, setHasError] = useState(false);
@@ -80,7 +84,11 @@ function CodeEditorWrapper({ value, onChange, language, height = "400px" }) {
           fontSize: 14,
           automaticLayout: true
         }}
-        loading={<div style={{ height, display: "grid", placeItems: "center", color: "#8994aa" }}>Loading editor...</div>}
+        loading={
+          <div style={{ height, display: "grid", placeItems: "center", color: "#8994aa" }}>
+            Loading editor...
+          </div>
+        }
       />
     </Suspense>
   );
@@ -231,7 +239,7 @@ const languages = {
 const defaults = {
   javascript: `console.log("Hello, CodeVerse!");`,
   python: `name = "CodeVerse"\nprint(f"Hello, {name}!")`,
-  html: `<main class=\"card\">\n  <h1>Hello CodeVerse</h1>\n  <p>Edit the HTML and see it live.</p>\n</main>`,
+  html: `<main class="card">\n  <h1>Hello CodeVerse</h1>\n  <p>Edit the HTML and see it live.</p>\n</main>`,
   css: `.card {\n  font-family: system-ui;\n  padding: 32px;\n  border-radius: 24px;\n  background: #151b2b;\n  color: white;\n}`,
   cpp: `#include <iostream>\n\nint main() {\n  std::cout << "Hello, CodeVerse!";\n  return 0;\n}`,
   java: `public class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello, CodeVerse!");\n  }\n}`
@@ -259,6 +267,30 @@ function App() {
   const [selectedChallenge, setSelectedChallenge] = useState(saved.selectedChallenge || challenges[0].id);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
+
+  // Gemini API Key & Model selection
+  const [geminiKey, setGeminiKey] = useState(localStorage.getItem("gemini_api_key") || "");
+  const [selectedModel, setSelectedModel] = useState(
+    localStorage.getItem("gemini_selected_model") || "gemini-2.5-flash"
+  );
+
+  const saveGeminiKey = (newKey) => {
+    const trimmed = newKey.trim();
+    setGeminiKey(trimmed);
+    if (trimmed) {
+      localStorage.setItem("gemini_api_key", trimmed);
+      setToast("Gemini API key saved!");
+    } else {
+      localStorage.removeItem("gemini_api_key");
+      setToast("Gemini API key cleared");
+    }
+  };
+
+  const handleSelectModel = (modelId) => {
+    setSelectedModel(modelId);
+    localStorage.setItem("gemini_selected_model", modelId);
+    setToast(`Active model: ${modelId}`);
+  };
 
   useEffect(() => {
     const loader = document.getElementById("loading");
@@ -395,7 +427,17 @@ function App() {
         </header>
 
         {page === "home" && (
-          <Home go={setPage} xp={xp} streak={streak} completed={completed} finish={finishLesson} />
+          <Home
+            go={setPage}
+            xp={xp}
+            streak={streak}
+            completed={completed}
+            finish={finishLesson}
+            geminiKey={geminiKey}
+            onSaveKey={saveGeminiKey}
+            selectedModel={selectedModel}
+            onSelectModel={handleSelectModel}
+          />
         )}
         {page === "learn" && (
           <Learn
@@ -427,8 +469,14 @@ function App() {
           <SettingsPage
             theme={theme}
             setTheme={setTheme}
+            geminiKey={geminiKey}
+            onSaveKey={saveGeminiKey}
+            selectedModel={selectedModel}
+            onSelectModel={handleSelectModel}
             reset={() => {
               localStorage.removeItem(STORAGE);
+              localStorage.removeItem("gemini_api_key");
+              localStorage.removeItem("gemini_selected_model");
               location.reload();
             }}
           />
@@ -458,8 +506,73 @@ function PageTitle({ eyebrow, title, desc, children }) {
   );
 }
 
-function Home({ go, xp, streak, completed }) {
+function Home({
+  go,
+  xp,
+  streak,
+  completed,
+  finish,
+  geminiKey,
+  onSaveKey,
+  selectedModel,
+  onSelectModel
+}) {
   const next = lessons.find((l) => !completed.includes(l.id)) || lessons[0];
+
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiResponse, setAiResponse] = useState("");
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [tempKey, setTempKey] = useState("");
+  const [showKeyModal, setShowKeyModal] = useState(false);
+
+  const handleAskGemini = async (customPrompt) => {
+    const question = customPrompt || aiPrompt;
+    if (!question.trim()) return;
+
+    if (!geminiKey) {
+      setShowKeyModal(true);
+      return;
+    }
+
+    setIsAiLoading(true);
+    setAiResponse(`Thinking with ${selectedModel}...`);
+
+    const systemPrompt = `You are a supportive, concise coding tutor inside CodeVerse.
+Context:
+- Current lesson: ${next.title} (${next.lang})
+- Lesson code:
+${next.code}
+
+Student question: ${question}
+
+Provide a clear, practical explanation or hint in 3-5 sentences.`;
+
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiKey}`;
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }]
+        })
+      });
+
+      const data = await res.json();
+      if (data.error) {
+        setAiResponse(`Gemini Error: ${data.error.message || "Invalid API Key or model error"}`);
+      } else {
+        const reply =
+          data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+          "No answer received from Gemini.";
+        setAiResponse(reply);
+      }
+    } catch (err) {
+      setAiResponse("Failed to connect to Gemini API. Check your network or API key.");
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   return (
     <div className="content">
@@ -558,25 +671,168 @@ function Home({ go, xp, streak, completed }) {
         </section>
 
         <section className="panel">
-          <span className="eyebrow">
-            <Bot size={14} /> AI TEACHER
-          </span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+            <span className="eyebrow">
+              <Bot size={14} /> AI TEACHER
+            </span>
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              <select
+                value={selectedModel}
+                onChange={(e) => onSelectModel(e.target.value)}
+                style={{
+                  background: "var(--panel2)",
+                  color: "var(--muted)",
+                  border: "1px solid var(--line)",
+                  borderRadius: "8px",
+                  padding: "4px 8px",
+                  fontSize: "11px",
+                  outline: "none"
+                }}
+              >
+                {AVAILABLE_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.id}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                onClick={() => setShowKeyModal(true)}
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--line)",
+                  color: geminiKey ? "#4ade80" : "#fb7185",
+                  borderRadius: "8px",
+                  padding: "4px 8px",
+                  fontSize: "11px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px"
+                }}
+              >
+                <Key size={12} />
+                {geminiKey ? "Key Active" : "Add Key"}
+              </button>
+            </div>
+          </div>
+
           <h2>What should we build today?</h2>
           <p className="muted">
-            Ask for an explanation, debugging help, a project idea, or a visual breakdown of a difficult concept.
+            Ask for an explanation, debugging help, or a visual breakdown of a concept.
           </p>
+
           <div className="aiPrompt">
-            <span>Explain recursion visually...</span>
-            <button><Send size={14} /></button>
+            <input
+              type="text"
+              value={aiPrompt}
+              placeholder="Ask anything about this code..."
+              onChange={(e) => setAiPrompt(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAskGemini()}
+              style={{
+                background: "transparent",
+                border: "none",
+                outline: "none",
+                color: "inherit",
+                width: "100%"
+              }}
+            />
+            <button onClick={() => handleAskGemini()} disabled={isAiLoading}>
+              <Send size={14} />
+            </button>
           </div>
+
+          {aiResponse && (
+            <div
+              style={{
+                marginTop: "14px",
+                padding: "12px",
+                background: "var(--panel2)",
+                borderRadius: "10px",
+                fontSize: "13px",
+                lineHeight: "1.6",
+                whiteSpace: "pre-wrap",
+                border: "1px solid var(--line)"
+              }}
+            >
+              {aiResponse}
+            </div>
+          )}
+
           <div className="suggestions">
-            <span>Explain arrays</span>
-            <span>Debug my code</span>
-            <span>Build a game</span>
-            <span>Learn Python</span>
+            {["Explain arrays", "Debug my code", "Explain this lesson", "Give me a practice challenge"].map(
+              (text) => (
+                <span
+                  key={text}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    setAiPrompt(text);
+                    handleAskGemini(text);
+                  }}
+                >
+                  {text}
+                </span>
+              )
+            )}
           </div>
         </section>
       </div>
+
+      {showKeyModal && (
+        <div className="modalBack" onClick={() => setShowKeyModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modalClose" onClick={() => setShowKeyModal(false)}>
+              <X />
+            </button>
+            <span className="eyebrow">GEMINI API KEY</span>
+            <h2>Enter your Gemini Key</h2>
+            <p style={{ color: "var(--muted)", fontSize: "13px", margin: "10px 0 16px" }}>
+              To enable the AI Teacher, paste your free Google Gemini API key from Google AI Studio. It is saved only in
+              your local browser and is never stored on a server.
+            </p>
+
+            <input
+              type="password"
+              placeholder="AIzaSy..."
+              value={tempKey || geminiKey}
+              onChange={(e) => setTempKey(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                background: "var(--panel2)",
+                border: "1px solid var(--line)",
+                borderRadius: "10px",
+                color: "var(--text)",
+                marginBottom: "14px",
+                boxSizing: "border-box"
+              }}
+            />
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                className="primary full"
+                onClick={() => {
+                  onSaveKey(tempKey || geminiKey);
+                  setShowKeyModal(false);
+                }}
+              >
+                Save Key
+              </button>
+              {geminiKey && (
+                <button
+                  className="secondary danger"
+                  onClick={() => {
+                    onSaveKey("");
+                    setTempKey("");
+                    setShowKeyModal(false);
+                  }}
+                >
+                  Clear Key
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="sectionHead">
         <div>
@@ -1076,19 +1332,112 @@ function GitHubPage() {
   );
 }
 
-function SettingsPage({ theme, setTheme, reset }) {
+function SettingsPage({
+  theme,
+  setTheme,
+  geminiKey,
+  onSaveKey,
+  selectedModel,
+  onSelectModel,
+  reset
+}) {
+  const [inputVal, setInputVal] = useState(geminiKey);
+
   return (
     <div className="content">
-      <PageTitle eyebrow="SETTINGS" title="Your learning environment" desc="Theme & storage control." />
+      <PageTitle
+        eyebrow="SETTINGS"
+        title="Your learning environment"
+        desc="Control appearance, API keys, active models, and local learning data."
+      />
+
       <div className="settingsGrid">
+        {/* Appearance Switch */}
         <div className="panel setting">
-          <div><Moon /><div><b>Appearance</b><p>Switch dark/light UI.</p></div></div>
+          <div>
+            <Moon />
+            <div>
+              <b>Appearance</b>
+              <p>Switch dark/light UI.</p>
+            </div>
+          </div>
           <button className="switch" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
             <span className={theme === "dark" ? "on" : ""} />
           </button>
         </div>
+
+        {/* Gemini API Key Setting */}
+        <div className="panel setting" style={{ flexDirection: "column", alignItems: "stretch", gap: "14px" }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <Key style={{ color: "#8b7cff" }} />
+            <div>
+              <b>Google Gemini API Key</b>
+              <p style={{ margin: "2px 0", fontSize: "11px", color: "var(--muted)" }}>
+                Paste your personal Gemini key to power the AI Teacher. Saved only on this browser.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: "8px" }}>
+            <input
+              type="password"
+              placeholder="Paste AIzaSy... key"
+              value={inputVal}
+              onChange={(e) => setInputVal(e.target.value)}
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                background: "var(--panel2)",
+                border: "1px solid var(--line)",
+                borderRadius: "8px",
+                color: "var(--text)"
+              }}
+            />
+            <button className="primary" onClick={() => onSaveKey(inputVal)}>
+              Save
+            </button>
+          </div>
+        </div>
+
+        {/* Gemini Model Selector */}
+        <div className="panel setting" style={{ flexDirection: "column", alignItems: "stretch", gap: "14px" }}>
+          <div>
+            <b>Gemini Model Engine</b>
+            <p style={{ margin: "2px 0", fontSize: "11px", color: "var(--muted)" }}>
+              Choose the active model for coding explanations and assistance.
+            </p>
+          </div>
+
+          <select
+            value={selectedModel}
+            onChange={(e) => onSelectModel(e.target.value)}
+            style={{
+              padding: "10px",
+              background: "var(--panel2)",
+              border: "1px solid var(--line)",
+              borderRadius: "8px",
+              color: "var(--text)",
+              fontSize: "13px",
+              outline: "none"
+            }}
+          >
+            {AVAILABLE_MODELS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Reset Progress */}
         <div className="panel setting">
-          <div><RotateCcw /><div><b>Reset local progress</b><p>Clears local data.</p></div></div>
+          <div>
+            <RotateCcw />
+            <div>
+              <b>Reset local progress</b>
+              <p>Clears XP, lesson completion, projects and settings on this device.</p>
+            </div>
+          </div>
           <button className="secondary danger" onClick={reset}>Reset data</button>
         </div>
       </div>
